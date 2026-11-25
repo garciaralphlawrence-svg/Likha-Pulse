@@ -227,6 +227,8 @@ def analyze(text: str, rating: float | None = None, thresholds: dict | None = No
         n = len(_keyword_hits(padded, words))
         if n:
             topic_hits[topic] = n + 2 * len(_keyword_hits(main_clause, words))
+    if "Safety & Health" in topic_hits:
+        topic_hits["Safety & Health"] += 10  # a health or safety mention always leads
     topics = sorted(topic_hits, key=lambda k: -topic_hits[k]) or ["General"]
 
     # confidence (how sure the engine is; not the same as sentiment strength)

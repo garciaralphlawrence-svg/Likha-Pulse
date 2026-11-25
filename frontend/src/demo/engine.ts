@@ -133,6 +133,7 @@ export function analyze(text: string, rating: number | null = null, th: Threshol
     const n = hits(padded, words).length;
     if (n) th2[topic] = n + 2 * hits(main, words).length;
   }
+  if (th2["Safety & Health"]) th2["Safety & Health"] += 10; // a health or safety mention always leads
   const sortedTopics = Object.keys(th2).sort((a, b) => th2[b] - th2[a]);
   const topics = sortedTopics.length ? sortedTopics : ["General"];
 
