@@ -20,11 +20,11 @@ function Letter({ ins }: { ins: Insight }) {
   return (
     <article className="space-y-6">
       <section className="relative overflow-hidden rounded-3xl bg-ink-950 p-8 text-ivory-100 shadow-lift">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-gold-500/15 blur-3xl" />
+        <div className="glow-orb pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-gold-500/15 blur-3xl" />
         <p className="relative flex items-center gap-2 text-[11px] uppercase tracking-[0.26em] text-gold-300"><Sparkles className="h-3.5 w-3.5" />In short · {fmtDate(ins.period.from, false)} – {fmtDate(ins.period.to, false)}</p>
         <p className="relative mt-3 font-display text-[27px] leading-snug text-ivory-50">{ins.summary.overall}</p>
       </section>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="stagger grid gap-4 md:grid-cols-2">
         {SECTIONS.map(([k, title, icon]) => ins.summary[k] && (
           <div key={k} className="card p-6">
             <p className="flex items-center gap-2 text-gold-700">{icon}<span className="eyebrow">{title}</span></p>
@@ -34,7 +34,7 @@ function Letter({ ins }: { ins: Insight }) {
       </div>
       <section className="rounded-3xl border border-gold-300/60 bg-gold-50 p-7">
         <p className="flex items-center gap-2 text-gold-700"><ListChecks className="h-5 w-5" /><span className="font-display text-2xl font-semibold text-ink-900">What you should do</span></p>
-        <ol className="mt-3 space-y-2">
+        <ol className="stagger mt-3 space-y-2">
           {(ins.summary.actions.includes("\n") ? ins.summary.actions.split("\n") : ins.summary.actions.split(/(?<=\.)\s+/)).filter(Boolean).map((a, i) => (
             <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-ink-800"><span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink-900 text-xs font-semibold text-gold-300">{i + 1}</span>{a}</li>
           ))}

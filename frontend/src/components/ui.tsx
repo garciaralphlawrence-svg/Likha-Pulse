@@ -88,7 +88,7 @@ export function Drawer({ open, onClose, title, children, width = "max-w-xl" }: {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className={clsx("relative flex h-full w-full flex-col bg-ivory-50 shadow-lift", width)}>
+      <div className={clsx("relative flex h-full w-full flex-col bg-ivory-50 shadow-lift", width)} style={{ animation: "slideIn .45s cubic-bezier(.2,.7,.2,1) both" }}>
         <div className="flex items-center justify-between border-b border-ivory-200 px-6 py-4">
           <h2 className="font-display text-2xl font-semibold text-ink-900">{title}</h2>
           <button className="btn-ghost p-2" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>

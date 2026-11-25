@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { Bell, FileText, Inbox, LayoutDashboard, LogOut, Menu, Plug, ScrollText, Settings, Siren, Sparkles, Users, Wand2, X } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { api, IS_DEMO } from "../api";
 import type { Notice } from "../api/types";
 import { resetDemo } from "../demo/demoApi";
@@ -91,6 +91,7 @@ function Notifications() {
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, can, logout } = useAuth();
   const [menu, setMenu] = useState(false);
+  const loc = useLocation();
   const initials = (user?.full_name ?? "?").split(" ").map((w) => w[0]).slice(0, 2).join("");
   const side = (
     <nav className="relative flex h-full flex-col overflow-hidden bg-ink-950 text-ink-400">
@@ -145,7 +146,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           {!IS_DEMO && <button className="btn-ghost p-2.5" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut className="h-[18px] w-[18px]" /></button>}
         </div>
       </header>
-      <main className="mx-auto max-w-[1320px] px-4 py-8 lg:px-10">{children}</main>
+      <main key={loc.pathname} className="anim-page mx-auto max-w-[1320px] px-4 py-8 lg:px-10">{children}</main>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export default function FeedbackTable({ data, page, pageSize, onPage, onOpen }: 
   if (!data.items.length) return <Empty title="No messages here">Try a different time period or filter.</Empty>;
   return (
     <div>
-      <ul className="space-y-3">
+      <ul className="stagger space-y-3">
         {data.items.map((r) => (
           <li key={r.id}>
             <button onClick={() => onOpen(r.id)} className="card group flex w-full gap-4 p-5 text-left transition hover:-translate-y-0.5 hover:border-gold-300 hover:shadow-lift">

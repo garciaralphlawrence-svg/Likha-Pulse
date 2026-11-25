@@ -53,14 +53,14 @@ export default function FeedbackDrawer({ id, onClose, onChanged }: { id: string 
               {fb.rating && <span className="flex text-gold-500">{Array.from({ length: Math.round(fb.rating) }, (_, i) => <Star key={i} className="h-3.5 w-3.5 fill-current" />)}</span>}
               {fb.is_sample && <SampleTag />}
             </div>
-            <blockquote className="mt-3 font-display text-[26px] leading-snug text-ink-900">“{fb.content}”</blockquote>
+            <blockquote style={{ animation: "fadeUp .7s cubic-bezier(.2,.7,.2,1) both" }} className="mt-3 font-display text-[26px] leading-snug text-ink-900">“{fb.content}”</blockquote>
           </div>
 
           <section className="relative overflow-hidden rounded-3xl bg-ink-950 p-6 text-ivory-100 shadow-lift">
             <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gold-500/15 blur-3xl" />
             <p className="relative flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-gold-300"><Sparkles className="h-3.5 w-3.5" />AI Review</p>
             <p className="relative mt-2 font-display text-[28px] leading-tight text-ivory-50">{headline(fb)}</p>
-            <div className="relative mt-4 divide-y divide-white/[0.06] border-t border-white/[0.06]">
+            <div className="stagger relative mt-4 divide-y divide-white/[0.06] border-t border-white/[0.06]">
               <Line k="Mood"><span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: SENT_COLORS[fb.sentiment] }} />{label(MOOD, fb.sentiment)} · {label(FEELING, fb.emotion)}</span></Line>
               <Line k="Type">{label(PURPOSE, fb.intent)}</Line>
               <Line k="About">{fb.topic === "General" ? "General experience" : fb.topic}</Line>

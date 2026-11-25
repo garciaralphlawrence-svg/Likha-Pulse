@@ -49,9 +49,9 @@ export default function Sentiment() {
           {!res || !view ? (
             <p className="relative mt-4 font-display text-2xl leading-snug text-ivory-200/80">Your review will appear here: how the customer feels, what it's about, how urgent it is, and what you should do.</p>
           ) : (
-            <div className="relative">
+            <div className="relative" key={res.reason + res.score}>
               <p className="mt-2 font-display text-[30px] leading-tight text-ivory-50">{headline(view)}</p>
-              <dl className="mt-5 divide-y divide-white/[0.06] border-t border-white/[0.06] text-[15px]">
+              <dl className="stagger mt-5 divide-y divide-white/[0.06] border-t border-white/[0.06] text-[15px]">
                 {[
                   ["Mood", <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: SENT_COLORS[res.sentiment] }} />{label(MOOD, res.sentiment)} · {label(FEELING, res.emotion)}</span>],
                   ["Type", label(PURPOSE, res.intent)],

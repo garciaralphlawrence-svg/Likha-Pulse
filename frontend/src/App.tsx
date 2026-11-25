@@ -1,5 +1,6 @@
 import { lazy, ReactNode, Suspense } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import Intro from "./components/Intro";
 import Layout from "./components/Layout";
 import { Spinner } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -47,5 +48,5 @@ function Shell() {
 }
 
 export default function App() {
-  return <AuthProvider><HashRouter><Shell /></HashRouter></AuthProvider>;
+  return <AuthProvider><Intro /><HashRouter><Shell /></HashRouter></AuthProvider>;
 }
