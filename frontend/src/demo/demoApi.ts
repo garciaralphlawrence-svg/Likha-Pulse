@@ -4,7 +4,7 @@
 import type { Api, AuditRow, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReportRow, SettingsData, UserRow } from "../api/types";
 import { fullAnalysis, normalize } from "./engine";
 
-const KEY = "pulse.demo.v2";
+const KEY = "pulse.demo.v3";
 const SESSION = "pulse.demo.session";
 const PLATFORMS: Record<string, string> = { google_business: "Google Business Profile", facebook_page: "Facebook Page comments", messenger: "Facebook Messenger", manual: "Manual entry" };
 const ROLE_PERMS: Record<string, string[]> = {
@@ -285,7 +285,7 @@ function seedLibrary(s: Store) {
     const f = { date_from: iso(a), date_to: iso(b) };
     const agg = aggregates(s, f);
     if (!agg.current.total) continue;
-    const created = b > now ? now : new Date(+b + day);
+    const created = new Date(Math.min(+b + day, +now - 3600000));
     made.push({ id: s.seq++, summary: compose(agg), aggregates: agg, engine: "rule", filters: {}, period: agg.period, created_at: iso(created) });
   }
   s.insights = made.reverse();
