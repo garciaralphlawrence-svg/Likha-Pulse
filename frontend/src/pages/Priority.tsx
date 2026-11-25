@@ -8,7 +8,7 @@ import { presetRange } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 
 const TABS = [
-  { k: "critical,high", l: "Critical & high" }, { k: "critical", l: "Critical" }, { k: "high", l: "High" }, { k: "medium", l: "Medium" }, { k: "low", l: "Low" },
+  { k: "critical,high", l: "Urgent & important" }, { k: "critical", l: "Urgent" }, { k: "high", l: "Important" }, { k: "medium", l: "Follow up" }, { k: "low", l: "No rush" },
 ];
 
 export default function Priority() {
@@ -22,12 +22,12 @@ export default function Priority() {
 
   return (
     <>
-      <PageHeader title="Priority Concerns" description="Urgency is assessed separately from sentiment: a neutral question can be critical, and a negative comment is not automatically urgent. Each item explains why it got its level." />
+      <PageHeader eyebrow="Needs attention" title="Reply to these first" description="Messages the AI thinks you should handle soon — like health or safety concerns, angry customers, or people still waiting for an answer." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {TABS.map((t) => <button key={t.k} onClick={() => set("priority", t.k)} className={f.priority === t.k ? "btn-primary" : "btn-secondary"}>{t.l}</button>)}
-        <label className="ml-auto flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />Hide resolved</label>
+        <label className="ml-auto flex items-center gap-2 text-sm text-ink-500"><input type="checkbox" className="accent-gold-500" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />Hide messages marked done</label>
       </div>
-      <FilterBar f={f} set={set} setF={setF} fields={["platform", "sentiment", "topic", "search"]} />
+      <FilterBar f={f} set={set} setF={setF} fields={["search", "platform", "topic"]} />
       <ErrorBox error={error} />
       {loading && !data ? <Spinner /> : data && <FeedbackTable data={data} page={page} pageSize={25} onPage={setPage} onOpen={setOpen} />}
       <FeedbackDrawer id={open} onClose={() => setOpen(null)} onChanged={reload} />

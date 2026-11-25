@@ -1,16 +1,17 @@
-import { CheckCircle2, CircleSlash, ExternalLink, RefreshCw, Trash2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Facebook, MessageCircle, PenLine, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api";
-import { Card, ErrorBox, PageHeader, SampleTag, Spinner } from "../components/ui";
+import { Card, ErrorBox, PageHeader, Spinner } from "../components/ui";
 import { useAuth } from "../lib/auth";
-import { fmtDate } from "../lib/format";
+import { ago } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 
-const STATUS = {
-  connected: { icon: CheckCircle2, cls: "text-emerald-700 bg-emerald-50", label: "Connected" },
-  not_connected: { icon: CircleSlash, cls: "text-slate-600 bg-slate-100", label: "Not connected" },
-  error: { icon: TriangleAlert, cls: "text-red-700 bg-red-50", label: "Error" },
-} as const;
+const META: Record<string, { name: string; what: string; icon: JSX.Element; bg: string }> = {
+  google_business: { name: "Google Reviews", what: "Reviews and star ratings from your Google Business Profile.", icon: <span className="font-display text-xl font-bold">G</span>, bg: "bg-white text-ink-900 ring-1 ring-ivory-300" },
+  facebook_page: { name: "Facebook Comments", what: "Comments on your Facebook Page posts.", icon: <Facebook className="h-5 w-5" />, bg: "bg-ink-900 text-gold-300" },
+  messenger: { name: "Messenger Chats", what: "Messages customers send to your Facebook Page.", icon: <MessageCircle className="h-5 w-5" />, bg: "bg-gold-500 text-white" },
+  manual: { name: "Added by staff", what: "Feedback your team types in from calls, walk-ins or email.", icon: <PenLine className="h-5 w-5" />, bg: "bg-ivory-200 text-ink-700" },
+};
 
 export default function Integrations() {
   const { can } = useAuth();
@@ -25,41 +26,45 @@ export default function Integrations() {
   const samples = data?.reduce((s, i) => s + i.sample_count, 0) ?? 0;
   return (
     <>
-      <PageHeader title="Platform Integrations" description="Each platform is a separate module using official APIs and authorized accounts only. A platform shows as connected only after real credentials are configured on the server and a sync succeeds." />
+      <PageHeader eyebrow="Connections" title="Where your messages come from" description="Once connected, new reviews, comments and chats arrive here automatically and the AI reads each one." />
       <ErrorBox error={error || err} />
-      {msg && <div className="mb-4 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</div>}
+      {msg && <div className="mb-4 rounded-2xl border border-ivory-300 bg-white px-4 py-3 text-sm text-ink-700">{msg}</div>}
       {loading && !data ? <Spinner /> : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2">
           {data?.map((i) => {
-            const st = STATUS[(i.status as keyof typeof STATUS)] ?? STATUS.not_connected;
+            const m = META[i.code] ?? META.manual;
+            const connected = i.status === "connected";
             return (
-              <Card key={i.code} title={i.name} action={<span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${st.cls}`}><st.icon className="h-3.5 w-3.5" />{st.label}</span>}>
-                <p className="text-sm text-slate-600">{i.detail}</p>
-                <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
-                  <span>{i.feedback_count} item(s) collected</span>{i.sample_count > 0 && <span className="flex items-center gap-1"><SampleTag />{i.sample_count}</span>}
-                  <span>Last sync: {fmtDate(i.last_sync_at)}</span>
-                </div>
-                {i.missing.length > 0 && (
-                  <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs">
-                    <p className="font-medium text-slate-700">Server environment variables needed:</p>
-                    <ul className="mt-1 space-y-0.5 font-mono text-slate-600">{i.missing.map((m) => <li key={m}>{m}</li>)}</ul>
+              <div key={i.code} className="card flex flex-col p-6">
+                <div className="flex items-start gap-4">
+                  <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${m.bg}`}>{m.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="font-display text-2xl font-semibold">{m.name}</h2>
+                      {connected
+                        ? <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+                        : <span className="rounded-full bg-ivory-100 px-3 py-1 text-xs font-medium text-ink-500">{i.status === "error" ? "Needs attention" : "Not connected yet"}</span>}
+                    </div>
+                    <p className="mt-1 text-sm text-ink-500">{m.what}</p>
                   </div>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {i.code !== "manual" && can("integrations.manage") && <button className="btn-secondary" disabled={busy === i.code} onClick={() => run(i.code, () => api.sync(i.code), (r) => `${i.name}: ${r.status === "connected" ? `fetched ${r.fetched}, added ${r.added} new` : r.detail}`)}><RefreshCw className={`h-4 w-4 ${busy === i.code ? "animate-spin" : ""}`} />Sync now</button>}
-                  {i.docs_url && <a className="btn-ghost" href={i.docs_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" />API documentation</a>}
                 </div>
-              </Card>
+                <div className="mt-5 flex flex-1 items-end justify-between gap-3 border-t border-ivory-200 pt-4 text-sm">
+                  <span className="text-ink-400">{i.feedback_count} messages{i.last_sync_at ? ` · updated ${ago(i.last_sync_at)}` : ""}</span>
+                  {i.code !== "manual" && (connected
+                    ? can("integrations.manage") && <button className="btn-secondary" disabled={busy === i.code} onClick={() => run(i.code, () => api.sync(i.code), (r) => `${m.name}: ${r.added ?? 0} new message(s).`)}><RefreshCw className={`h-4 w-4 ${busy === i.code ? "animate-spin" : ""}`} />Check for new</button>
+                    : <span className="text-xs text-gold-700">Likha Studio will connect this for you</span>)}
+                </div>
+              </div>
             );
           })}
         </div>
       )}
       {can("integrations.manage") && (
-        <Card title="Sample data" className="mt-5" subtitle="For demonstrations before a platform is connected. Sample items are always labeled and can be removed at any time.">
+        <Card title="Sample messages" className="mt-6" subtitle="Used to preview the system before your accounts are connected. Sample messages are always marked “Sample”.">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-slate-600">{samples} sample item(s) stored.</span>
-            <button className="btn-secondary" disabled={!!busy} onClick={() => run("load", () => api.loadSample(), (r) => `Added ${r.added} sample item(s).`)}>Load sample data</button>
-            <button className="btn-danger" disabled={!!busy || !samples} onClick={() => confirm("Delete all sample feedback? Real feedback is not affected.") && run("clear", () => api.clearSample(), (r) => `Deleted ${r.deleted} sample item(s).`)}><Trash2 className="h-4 w-4" />Delete sample data</button>
+            <span className="mr-2 text-sm text-ink-500">{samples} sample messages.</span>
+            <button className="btn-secondary" disabled={!!busy} onClick={() => run("load", () => api.loadSample(), (r) => `Added ${r.added} sample messages.`)}>Add sample messages</button>
+            <button className="btn-danger" disabled={!!busy || !samples} onClick={() => confirm("Remove all sample messages? Real messages stay.") && run("clear", () => api.clearSample(), (r) => `Removed ${r.deleted} sample messages.`)}><Trash2 className="h-4 w-4" />Remove samples</button>
           </div>
         </Card>
       )}

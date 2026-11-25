@@ -250,28 +250,27 @@ function aggregates(s: Store, f: Filters) {
     most_appreciated: cur.most_appreciated, emotions: cur.emotions.slice(0, 5), emerging, recurring: Object.entries(cn).filter(([t, n]) => n >= 3 && (pn[t] ?? 0) >= 2).map(([t]) => t),
     assistance_requests: cur.intents.filter((i) => ["request_assistance", "follow_up_request"].includes(i.intent)).reduce((a, i) => a + i.count, 0), by_platform: cur.by_platform };
 }
-const sgn = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 function compose(agg: ReturnType<typeof aggregates>): InsightSummary {
   const c = agg.current, p = agg.previous;
-  if (!c.total) return { overall: "No feedback was collected in the selected period, so there is nothing to summarize yet.", positives: "", complaints: "", emerging: "", recurring: "", trend: "", actions: "" };
-  const delta = (a: number, b: number) => { const d = Math.round((a - b) * 10) / 10; return d === 0 ? "unchanged" : d > 0 ? `up ${d} points` : `down ${Math.abs(d)} points`; };
-  let overall = `${c.total} feedback items were analyzed: ${c.positive} positive (${c.positive_pct}%), ${c.neutral} neutral (${c.neutral_pct}%) and ${c.negative} negative (${c.negative_pct}%). The average sentiment score is ${sgn(c.average_score)}. ${c.high_priority} item(s) are high priority or critical` + (c.pending_review ? `, and ${c.pending_review} are waiting for human review.` : ".");
-  if (c.sample_count) overall += ` Note: ${c.sample_count} of these items are labeled sample data, not real customer feedback.`;
+  if (!c.total) return { overall: "No messages came in during this period.", positives: "", complaints: "", emerging: "", recurring: "", trend: "", actions: "" };
+  let overall = `You received ${c.total} messages: ${c.positive} from happy customers (${c.positive_pct}%), ${c.neutral} neutral and ${c.negative} from unhappy customers (${c.negative_pct}%). ` +
+    (c.high_priority ? `${c.high_priority} need your attention` + (c.pending_review ? `, and ${c.pending_review} are unclear and worth a quick look.` : ".") : "Nothing urgent came in.");
+  if (c.sample_count) overall += ` Note: ${c.sample_count} of these are sample messages for preview, not real customers.`;
   const ma = agg.most_appreciated, tc = agg.top_complaints, em = agg.emerging; const acts: string[] = [];
-  if (tc.length) acts.push(`Review the process behind ${tc[0].topic}, the top complaint topic, and assign an owner to monitor it.`);
-  if (em.length) acts.push(`Investigate the rise in complaints about ${em[0].topic} before it becomes a recurring problem.`);
-  if (c.unresolved_high_priority) acts.push(`Resolve the ${c.unresolved_high_priority} open high-priority or critical item(s) and close the loop with each customer.`);
-  if (agg.assistance_requests) acts.push(`${agg.assistance_requests} message(s) asked for help or an update; check response handling and reply times.`);
-  if (c.pending_review) acts.push(`Have a reviewer validate the ${c.pending_review} low-confidence or possibly sarcastic classifications.`);
-  if (ma.length) acts.push(`Recognize the team for ${ma[0].topic}, the most appreciated area.`);
+  if (tc.length) acts.push(`Fix the biggest complaint first: ${tc[0].topic.toLowerCase()}. Assign one person to own it.`);
+  if (em.length) acts.push(`Look into ${em[0].topic.toLowerCase()} now, before it becomes a bigger problem.`);
+  if (c.unresolved_high_priority) acts.push(`Reply to the ${c.unresolved_high_priority} customers who still need an answer.`);
+  if (agg.assistance_requests) acts.push(`${agg.assistance_requests} customers asked for help or an update. Make sure someone replies quickly.`);
+  if (c.pending_review) acts.push(`Take a quick look at ${c.pending_review} unclear messages (some may be sarcasm).`);
+  if (ma.length) acts.push(`Thank your team: customers love your ${ma[0].topic.toLowerCase()}.`);
   return {
     overall,
-    positives: ma.length ? `Positive feedback most often mentioned ${ma.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No recurring positive topic stood out in this period.",
-    complaints: tc.length ? `The most common complaints were about ${tc.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No recurring complaint topic was found.",
-    emerging: em.length ? `Emerging issues (complaints at least doubled versus the previous period): ${em.map((e) => `${e.topic} (${e.before} → ${e.now})`).join(", ")}.` : "No new issue grew sharply compared with the previous period.",
-    recurring: agg.recurring.length ? `Recurring concerns seen in both this and the previous period: ${agg.recurring.join(", ")}.` : "No complaint topic repeated strongly across both periods.",
-    trend: p.total ? `Compared with the previous period of the same length, negative share is ${delta(c.negative_pct, p.negative_pct)} (${p.negative_pct}% → ${c.negative_pct}%) and the average score moved from ${sgn(p.average_score)} to ${sgn(c.average_score)}.` : "There is no data for the previous period, so changes over time cannot be measured yet.",
-    actions: acts.join(" ") || "No specific action is needed based on this period's data.",
+    positives: ma.length ? `Happy customers most often mention ${ma.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No single thing stood out in the happy messages.",
+    complaints: tc.length ? `Most complaints are about ${tc.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No common complaint this period.",
+    emerging: em.length ? `New issues growing fast (complaints at least doubled): ${em.map((e) => `${e.topic} (${e.before} → ${e.now})`).join(", ")}.` : "No new problem is growing quickly.",
+    recurring: agg.recurring.length ? `These problems keep coming back: ${agg.recurring.join(", ")}.` : "No problem keeps repeating.",
+    trend: p.total ? `${c.negative_pct <= p.negative_pct ? "Things are improving: " : "Things got worse: "}unhappy messages went from ${p.negative_pct}% to ${c.negative_pct}% compared with the period before.` : "Not enough history yet to compare with an earlier period.",
+    actions: acts.join("\n") || "Keep doing what you are doing. Nothing needs action right now.",
   };
 }
 

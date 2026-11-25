@@ -1,41 +1,59 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+// Inbox list: each comment / review / chat as a message card with the AI's one-line review.
+import clsx from "clsx";
+import { ChevronLeft, ChevronRight, Facebook, MessageCircle, PenLine, Star } from "lucide-react";
 import type { FeedbackItem, Paged } from "../api/types";
-import { PLATFORM_LABEL, fmtDate, pretty } from "../lib/format";
-import { ConfidenceBar, Empty, PriorityBadge, SampleTag, SentimentBadge, Tag } from "./ui";
+import { PLATFORM_LABEL, SENT_COLORS, ago, headline } from "../lib/format";
+import { Empty, PriorityBadge, SampleTag, Tag } from "./ui";
+
+function SourceIcon({ p }: { p: string }) {
+  const map: Record<string, [JSX.Element, string]> = {
+    google_business: [<span className="font-display text-base font-bold">G</span>, "bg-white text-ink-800 ring-1 ring-ivory-300"],
+    facebook_page: [<Facebook className="h-4 w-4" />, "bg-ink-900 text-gold-300"],
+    messenger: [<MessageCircle className="h-4 w-4" />, "bg-gold-500 text-white"],
+    manual: [<PenLine className="h-4 w-4" />, "bg-ivory-200 text-ink-700"],
+  };
+  const [icon, cls] = map[p] ?? map.manual;
+  return <span className={clsx("grid h-10 w-10 shrink-0 place-items-center rounded-full", cls)}>{icon}</span>;
+}
 
 export default function FeedbackTable({ data, page, pageSize, onPage, onOpen }: { data: Paged<FeedbackItem>; page: number; pageSize: number; onPage: (p: number) => void; onOpen: (id: string) => void }) {
   const pages = Math.max(1, Math.ceil(data.total / pageSize));
-  if (!data.items.length) return <Empty title="No feedback matches these filters" />;
+  if (!data.items.length) return <Empty title="No messages here">Try a different time period or filter.</Empty>;
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-[1200px] w-full border-collapse">
-          <thead><tr>{["ID", "Platform", "Author", "Comment / message", "Date", "Sentiment", "Confidence", "Emotion", "Intent", "Topic", "Priority", "Review"].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
-          <tbody>
-            {data.items.map((r) => (
-              <tr key={r.id} className="cursor-pointer hover:bg-slate-50" onClick={() => onOpen(r.id)} tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onOpen(r.id)}>
-                <td className="td font-mono text-xs text-slate-500">{r.id.slice(0, 8)}</td>
-                <td className="td whitespace-nowrap">{PLATFORM_LABEL[r.platform] ?? r.platform_name}</td>
-                <td className="td whitespace-nowrap text-xs text-slate-500">{r.author}</td>
-                <td className="td max-w-[380px]"><p className="line-clamp-2">{r.content}</p><div className="mt-1 flex gap-1">{r.is_sample && <SampleTag />}{r.possible_sarcasm && <Tag tone="amber">Sarcasm?</Tag>}</div></td>
-                <td className="td whitespace-nowrap text-xs text-slate-500">{fmtDate(r.created_at)}</td>
-                <td className="td whitespace-nowrap"><SentimentBadge value={r.sentiment} score={r.score} /></td>
-                <td className="td"><ConfidenceBar value={r.confidence} /></td>
-                <td className="td whitespace-nowrap">{pretty(r.emotion)}</td>
-                <td className="td whitespace-nowrap">{pretty(r.intent)}</td>
-                <td className="td whitespace-nowrap">{r.topic}</td>
-                <td className="td"><PriorityBadge value={r.priority} /></td>
-                <td className="td whitespace-nowrap"><Tag tone={r.review_status === "reviewed" ? "green" : r.review_status === "pending_review" ? "amber" : "slate"}>{pretty(r.review_status)}</Tag></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2.5 text-sm text-slate-600">
-        <span>{data.total.toLocaleString()} results · page {page} of {pages}</span>
-        <div className="flex gap-1">
-          <button className="btn-secondary px-2" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button>
-          <button className="btn-secondary px-2" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page"><ChevronRight className="h-4 w-4" /></button>
+    <div>
+      <ul className="space-y-3">
+        {data.items.map((r) => (
+          <li key={r.id}>
+            <button onClick={() => onOpen(r.id)} className="card group flex w-full gap-4 p-5 text-left transition hover:-translate-y-0.5 hover:border-gold-300 hover:shadow-lift">
+              <SourceIcon p={r.platform} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-400">
+                  <span className="font-medium text-ink-700">{PLATFORM_LABEL[r.platform] ?? r.platform_name}</span>
+                  <span>·</span><span>{ago(r.created_at)}</span>
+                  {r.rating && <span className="flex items-center gap-0.5 text-gold-500">{Array.from({ length: Math.round(r.rating) }, (_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}</span>}
+                  {r.is_sample && <SampleTag />}
+                  {r.action_status === "resolved" && <Tag tone="green">Done</Tag>}
+                </div>
+                <p className="mt-1.5 line-clamp-2 text-[15px] leading-relaxed text-ink-900">“{r.content}”</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-ivory-100 px-3 py-1 text-[13px] text-ink-700">
+                    <span className="h-2 w-2 rounded-full" style={{ background: SENT_COLORS[r.sentiment] }} />
+                    <span className="font-medium text-gold-700">AI:</span> {headline(r)}
+                  </span>
+                  {r.possible_sarcasm && <Tag tone="gold">Might be sarcastic</Tag>}
+                  {r.review_status === "pending_review" && <Tag tone="gold">Please double-check</Tag>}
+                </div>
+              </div>
+              <div className="hidden shrink-0 flex-col items-end gap-2 sm:flex"><PriorityBadge value={r.priority} /></div>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 flex items-center justify-between text-sm text-ink-500">
+        <span>{data.total.toLocaleString()} messages · page {page} of {pages}</span>
+        <div className="flex gap-2">
+          <button className="btn-secondary px-3" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button>
+          <button className="btn-secondary px-3" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page"><ChevronRight className="h-4 w-4" /></button>
         </div>
       </div>
     </div>

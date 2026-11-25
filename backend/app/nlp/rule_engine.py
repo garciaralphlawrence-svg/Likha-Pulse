@@ -282,22 +282,22 @@ def assess_priority(a: Analysis, text: str, repeated_count: int = 0, unresolved_
     padded = f" {normalize(text)} "
     critical = _keyword_hits(padded, LEXICON["critical_terms"])
     if critical:
-        return "critical", f"Mentions a sensitive or safety-related issue ('{critical[0]}'). Needs immediate review regardless of tone."
+        return "critical", f"Mentions a health, safety or serious issue ('{critical[0]}'). Handle this today."
     if a.score <= -80:
-        return "high", f"Strong dissatisfaction (score {a.score})."
+        return "high", "The customer is very upset."
     if repeated_count >= 3 and a.label == "negative":
-        return "high", f"Repeated complaint: {repeated_count} similar negative messages about {a.primary_topic} in the last 7 days."
+        return "high", f"{repeated_count} customers complained about {a.primary_topic.lower()} this week."
     if a.intent == "follow_up_request" or unresolved_days >= 3:
-        return "high", "The customer is still waiting for a resolution or reply."
+        return "high", "The customer is still waiting for a reply."
     if a.intent in ("reported_problem", "request_assistance"):
-        return "medium", "Reports a problem or asks for help; needs follow-up."
+        return "medium", "Reports a problem or asks for help. Reply soon."
     if a.label == "negative":
-        return "medium", "General complaint that should be acknowledged."
+        return "medium", "A complaint worth answering."
     if a.intent == "suggestion":
-        return "medium", "Suggestion worth reviewing."
+        return "medium", "A suggestion worth considering."
     if a.possible_sarcasm:
-        return "medium", "Possible sarcasm; confirm the real sentiment."
-    return "low", "Inquiry, compliment or ordinary feedback with no urgent signal."
+        return "medium", "Might be sarcasm. Check what they really mean."
+    return "low", "Nothing urgent."
 
 
 ACTIONS = {
@@ -310,7 +310,7 @@ ACTIONS = {
     "suggestion": "Thank the customer and forward the suggestion to the team for evaluation.",
     "compliment": "Thank the customer publicly and share the praise with the staff involved.",
     "appreciation": "Thank the customer and share the feedback with the team.",
-    "general_feedback": "Acknowledge the feedback; no immediate action needed.",
+    "general_feedback": "Thank them for the feedback. No action needed.",
 }
 
 

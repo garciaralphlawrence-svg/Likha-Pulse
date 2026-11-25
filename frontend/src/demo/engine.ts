@@ -173,15 +173,15 @@ function explain(label: string, score: number, signals: Signal[], contrastWord: 
 export function assessPriority(a: Analysis, text: string, repeated = 0): [string, string] {
   const padded = ` ${normalize(text)} `;
   const critical = hits(padded, L.critical_terms);
-  if (critical.length) return ["critical", `Mentions a sensitive or safety-related issue ('${critical[0]}'). Needs immediate review regardless of tone.`];
-  if (a.score <= -80) return ["high", `Strong dissatisfaction (score ${a.score}).`];
-  if (repeated >= 3 && a.label === "negative") return ["high", `Repeated complaint: ${repeated} similar negative messages about ${a.primary_topic} in the last 7 days.`];
-  if (a.intent === "follow_up_request") return ["high", "The customer is still waiting for a resolution or reply."];
-  if (["reported_problem", "request_assistance"].includes(a.intent)) return ["medium", "Reports a problem or asks for help; needs follow-up."];
-  if (a.label === "negative") return ["medium", "General complaint that should be acknowledged."];
-  if (a.intent === "suggestion") return ["medium", "Suggestion worth reviewing."];
-  if (a.possible_sarcasm) return ["medium", "Possible sarcasm; confirm the real sentiment."];
-  return ["low", "Inquiry, compliment or ordinary feedback with no urgent signal."];
+  if (critical.length) return ["critical", `Mentions a health, safety or serious issue ('${critical[0]}'). Handle this today.`];
+  if (a.score <= -80) return ["high", "The customer is very upset."];
+  if (repeated >= 3 && a.label === "negative") return ["high", `${repeated} customers complained about ${a.primary_topic.toLowerCase()} this week.`];
+  if (a.intent === "follow_up_request") return ["high", "The customer is still waiting for a reply."];
+  if (["reported_problem", "request_assistance"].includes(a.intent)) return ["medium", "Reports a problem or asks for help. Reply soon."];
+  if (a.label === "negative") return ["medium", "A complaint worth answering."];
+  if (a.intent === "suggestion") return ["medium", "A suggestion worth considering."];
+  if (a.possible_sarcasm) return ["medium", "Might be sarcasm. Check what they really mean."];
+  return ["low", "Nothing urgent."];
 }
 
 const ACTIONS: Record<string, string> = {
@@ -194,7 +194,7 @@ const ACTIONS: Record<string, string> = {
   suggestion: "Thank the customer and forward the suggestion to the team for evaluation.",
   compliment: "Thank the customer publicly and share the praise with the staff involved.",
   appreciation: "Thank the customer and share the feedback with the team.",
-  general_feedback: "Acknowledge the feedback; no immediate action needed.",
+  general_feedback: "Thank them for the feedback. No action needed.",
 };
 export const recommend = (a: Analysis) => (a.priority === "critical" ? ACTIONS.critical : ACTIONS[a.intent] ?? ACTIONS.general_feedback);
 

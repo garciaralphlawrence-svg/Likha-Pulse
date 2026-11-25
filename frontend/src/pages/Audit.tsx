@@ -13,16 +13,15 @@ export default function Audit() {
   const { data, loading, error } = useAsync(() => api.audit(action || undefined, page), [action, page]);
   return (
     <>
-      <PageHeader title="Audit Logs" description="Who did what and when: logins, reviews, report generation, user and settings changes." />
-      <div className="mb-4 w-64"><Select label="Action" value={action} onChange={(v) => { setAction(v); setPage(1); }} options={ACTIONS} /></div>
+      <PageHeader eyebrow="Activity" title="Who did what" description="A record of sign-ins, corrections, reports and changes made by your team." />
+      <div className="mb-4 w-64"><Select label="Show only" value={action} onChange={(v) => { setAction(v); setPage(1); }} options={ACTIONS} /></div>
       <ErrorBox error={error} />
       <Card>
-        {loading ? <Spinner /> : !data?.length ? <Empty title="No log entries" /> : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[800px]"><thead><tr>{["Time", "User", "Action", "Entity", "Details"].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
+        {loading ? <Spinner /> : !data?.length ? <Empty title="No activity yet" /> : (
+          <div className="overflow-x-auto"><table className="w-full min-w-[800px]"><thead><tr>{["When", "Who", "What happened", "", ""].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
             <tbody>{data.map((r) => (
-              <tr key={r.id}><td className="td whitespace-nowrap text-xs text-slate-500">{fmtDate(r.created_at)}</td><td className="td text-sm">{r.actor}</td>
-                <td className="td text-sm font-medium">{pretty(r.action)}</td><td className="td text-xs text-slate-500">{r.entity}{r.entity_id && ` · ${r.entity_id.slice(0, 12)}`}</td>
-                <td className="td max-w-md truncate font-mono text-xs text-slate-500" title={JSON.stringify(r.details)}>{JSON.stringify(r.details)}</td></tr>
+              <tr key={r.id}><td className="td whitespace-nowrap text-xs text-ink-400">{fmtDate(r.created_at)}</td><td className="td text-sm">{r.actor}</td>
+                <td className="td text-sm font-medium">{pretty(r.action)}</td><td className="td" /><td className="td" /></tr>
             ))}</tbody></table></div>
         )}
         <div className="mt-3 flex justify-end gap-2"><button className="btn-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Newer</button><button className="btn-secondary" disabled={(data?.length ?? 0) < 50} onClick={() => setPage(page + 1)}>Older</button></div>

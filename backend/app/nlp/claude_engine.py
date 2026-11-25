@@ -52,6 +52,7 @@ Fields:
 - reason, intent_reason, priority_reason: one or two plain sentences explaining why, quoting the words that drove the decision.
 - recommended_action: one practical next step for management.
 - topics: up to three from the allowed list, most important first; use "General" if none fit.
+Write every reason and the recommended action in short, friendly, plain English that a busy business owner understands at a glance. Avoid technical words such as "sentiment", "score", "intent" or "classification".
 Never invent facts that are not in the message."""
 
 

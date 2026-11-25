@@ -82,7 +82,7 @@ def test_insights_use_real_numbers(client, admin_headers):
     ins = client.post("/api/insights/generate?date_from=2000-01-01", headers=admin_headers).json()
     total = ins["aggregates"]["current"]["total"]
     assert str(total) in ins["summary"]["overall"]
-    assert "sample data" in ins["summary"]["overall"]
+    assert "sample messages" in ins["summary"]["overall"]
 
 
 def test_reports_all_formats(client, admin_headers):

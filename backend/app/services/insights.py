@@ -50,46 +50,48 @@ def _delta(a: float, b: float) -> str:
 def compose(agg: dict) -> dict:
     c, p = agg["current"], agg["previous"]
     if c["total"] == 0:
-        msg = "No feedback was collected in the selected period, so there is nothing to summarize yet."
+        msg = "No messages came in during this period."
         return {k: msg if k == "overall" else "" for k in ("overall", "positives", "complaints", "emerging", "recurring", "trend", "actions")}
     s = {}
-    s["overall"] = (f"{c['total']} feedback items were analyzed: {c['positive']} positive ({c['positive_pct']}%), "
-                    f"{c['neutral']} neutral ({c['neutral_pct']}%) and {c['negative']} negative ({c['negative_pct']}%). "
-                    f"The average sentiment score is {c['average_score']:+}. {c['high_priority']} item(s) are high priority or critical"
-                    + (f", and {c['pending_review']} are waiting for human review." if c["pending_review"] else "."))
+    s["overall"] = (f"You received {c['total']} messages: {c['positive']} from happy customers ({c['positive_pct']}%), "
+                    f"{c['neutral']} neutral and {c['negative']} from unhappy customers ({c['negative_pct']}%). "
+                    + ((f"{c['high_priority']} need your attention"
+                        + (f", and {c['pending_review']} are unclear and worth a quick look." if c["pending_review"] else "."))
+                       if c["high_priority"] else "Nothing urgent came in."))
     if c.get("sample_count"):
-        s["overall"] += f" Note: {c['sample_count']} of these items are labeled sample data, not real customer feedback."
+        s["overall"] += f" Note: {c['sample_count']} of these are sample messages for preview, not real customers."
     ma = agg["most_appreciated"]
-    s["positives"] = ("Positive feedback most often mentioned " + ", ".join(f"{t['topic']} ({t['count']})" for t in ma[:3]) + "."
-                      ) if ma else "No recurring positive topic stood out in this period."
+    s["positives"] = ("Happy customers most often mention " + ", ".join(f"{t['topic']} ({t['count']})" for t in ma[:3]) + "."
+                      ) if ma else "No single thing stood out in the happy messages."
     tc = agg["top_complaints"]
-    s["complaints"] = ("The most common complaints were about " + ", ".join(f"{t['topic']} ({t['count']})" for t in tc[:3]) + "."
-                       ) if tc else "No recurring complaint topic was found."
+    s["complaints"] = ("Most complaints are about " + ", ".join(f"{t['topic']} ({t['count']})" for t in tc[:3]) + "."
+                       ) if tc else "No common complaint this period."
     em = agg["emerging"]
-    s["emerging"] = ("Emerging issues (complaints at least doubled versus the previous period): " +
+    s["emerging"] = ("New issues growing fast (complaints at least doubled): " +
                      ", ".join(f"{e['topic']} ({e['before']} → {e['now']})" for e in em) + "."
-                     ) if em else "No new issue grew sharply compared with the previous period."
-    s["recurring"] = ("Recurring concerns seen in both this and the previous period: " + ", ".join(agg["recurring"]) + "."
-                      ) if agg["recurring"] else "No complaint topic repeated strongly across both periods."
+                     ) if em else "No new problem is growing quickly."
+    s["recurring"] = ("These problems keep coming back: " + ", ".join(agg["recurring"]) + "."
+                      ) if agg["recurring"] else "No problem keeps repeating."
     if p["total"]:
-        s["trend"] = (f"Compared with the previous period of the same length, negative share is {_delta(c['negative_pct'], p['negative_pct'])} "
-                      f"({p['negative_pct']}% → {c['negative_pct']}%) and the average score moved from {p['average_score']:+} to {c['average_score']:+}.")
+        better = c["negative_pct"] <= p["negative_pct"]
+        s["trend"] = (("Things are improving: " if better else "Things got worse: ")
+                      + f"unhappy messages went from {p['negative_pct']}% to {c['negative_pct']}% compared with the period before.")
     else:
-        s["trend"] = "There is no data for the previous period, so changes over time cannot be measured yet."
+        s["trend"] = "Not enough history yet to compare with an earlier period."
     acts = []
     if tc:
-        acts.append(f"Review the process behind {tc[0]['topic']}, the top complaint topic, and assign an owner to monitor it.")
+        acts.append(f"Fix the biggest complaint first: {tc[0]['topic'].lower()}. Assign one person to own it.")
     if em:
-        acts.append(f"Investigate the rise in complaints about {em[0]['topic']} before it becomes a recurring problem.")
+        acts.append(f"Look into {em[0]['topic'].lower()} now, before it becomes a bigger problem.")
     if c["unresolved_high_priority"]:
-        acts.append(f"Resolve the {c['unresolved_high_priority']} open high-priority or critical item(s) and close the loop with each customer.")
+        acts.append(f"Reply to the {c['unresolved_high_priority']} customers who still need an answer.")
     if agg["assistance_requests"]:
-        acts.append(f"{agg['assistance_requests']} message(s) asked for help or an update; check response handling and reply times.")
+        acts.append(f"{agg['assistance_requests']} customers asked for help or an update. Make sure someone replies quickly.")
     if c["pending_review"]:
-        acts.append(f"Have a reviewer validate the {c['pending_review']} low-confidence or possibly sarcastic classifications.")
+        acts.append(f"Take a quick look at {c['pending_review']} unclear messages (some may be sarcasm).")
     if ma:
-        acts.append(f"Recognize the team for {ma[0]['topic']}, the most appreciated area.")
-    s["actions"] = " ".join(acts) or "No specific action is needed based on this period's data."
+        acts.append(f"Thank your team: customers love your {ma[0]['topic'].lower()}.")
+    s["actions"] = "\n".join(acts) or "Keep doing what you are doing. Nothing needs action right now."
     return s
 
 
@@ -100,7 +102,7 @@ INSIGHT_SCHEMA = {"type": "object", "additionalProperties": False,
 
 def _claude_rewrite(agg: dict, draft: dict, key: str, model: str) -> dict | None:
     client = anthropic.Anthropic(api_key=key, max_retries=2, timeout=90.0)
-    prompt = ("Rewrite these findings as a clear executive summary for management, one short paragraph per field. "
+    prompt = ("Rewrite these findings as a short, friendly briefing for a busy business owner, one or two plain sentences per field, with no technical words. "
               "Use only the numbers that appear in the aggregates and draft; do not add, estimate or round any figure, "
               "and keep the note about sample data if present.\n\nAggregates:\n" + json.dumps(agg, default=str) +
               "\n\nDraft findings:\n" + json.dumps(draft))

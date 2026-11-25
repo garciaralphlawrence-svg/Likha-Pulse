@@ -24,9 +24,9 @@ export default function Feedback() {
 
   return (
     <>
-      <PageHeader title="Feedback Monitoring" description="Every collected comment, review and message with its AI analysis. Click a row for the full explanation and to validate the result."
-        actions={can("feedback.manage") && <button className="btn-primary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Add feedback</button>} />
-      <FilterBar f={f} set={set} setF={setF} fields={["platform", "sentiment", "priority", "emotion", "intent", "topic", "review", "action", "search"]} />
+      <PageHeader eyebrow="Inbox" title="Comments & chats" description="Every review, comment and chat — already read by the AI. Tap a message to see what the customer feels and what to do next."
+        actions={can("feedback.manage") && <button className="btn-secondary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Add a message</button>} />
+      <FilterBar f={f} set={set} setF={setF} fields={["search", "platform", "sentiment", "emotion", "intent", "topic", "review", "action"]} />
       <ErrorBox error={error} />
       {loading && !data ? <Spinner /> : data && <FeedbackTable data={data} page={page} pageSize={PAGE} onPage={setPage} onOpen={setOpen} />}
       <FeedbackDrawer id={open} onClose={() => { setOpen(null); if (params.get("open")) { params.delete("open"); setParams(params); } }} onChanged={reload} />
@@ -44,15 +44,15 @@ function AddFeedback({ open, onClose, onAdded }: { open: boolean; onClose: () =>
     catch (e) { setErr(e); } finally { setBusy(false); }
   };
   return (
-    <Modal open={open} onClose={onClose} title="Add feedback manually">
-      <p className="mb-3 text-xs text-slate-500">For feedback received outside connected platforms (phone, walk-in, email). It is analyzed immediately.</p>
-      <label className="block"><span className="label">Feedback text</span><textarea className="input min-h-[110px]" value={content} onChange={(e) => setContent(e.target.value)} /></label>
+    <Modal open={open} onClose={onClose} title="Add a message">
+      <p className="mb-4 text-sm text-ink-400">For feedback from calls, walk-ins or email. The AI reviews it right away.</p>
+      <label className="block"><span className="label">What did the customer say?</span><textarea className="input min-h-[110px]" value={content} onChange={(e) => setContent(e.target.value)} /></label>
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <label><span className="label">Customer (optional, anonymized)</span><input className="input" value={author} onChange={(e) => setAuthor(e.target.value)} /></label>
+        <label><span className="label">Customer name (optional)</span><input className="input" value={author} onChange={(e) => setAuthor(e.target.value)} /></label>
         <label><span className="label">Rating (optional)</span><select className="input" value={rating} onChange={(e) => setRating(e.target.value)}><option value="">None</option>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} star{n > 1 && "s"}</option>)}</select></label>
       </div>
       <div className="mt-3"><ErrorBox error={err} /></div>
-      <div className="mt-4 flex justify-end gap-2"><button className="btn-secondary" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy || content.trim().length < 2} onClick={submit}>{busy ? "Analyzing…" : "Add & analyze"}</button></div>
+      <div className="mt-4 flex justify-end gap-2"><button className="btn-secondary" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy || content.trim().length < 2} onClick={submit}>{busy ? "Reviewing…" : "Add & review"}</button></div>
     </Modal>
   );
 }

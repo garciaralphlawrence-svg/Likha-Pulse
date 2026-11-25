@@ -18,7 +18,7 @@ const Audit = lazy(() => import("./pages/Audit"));
 
 function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const { can } = useAuth();
-  return can(perm) ? <>{children}</> : <div className="card p-8 text-center text-sm text-slate-600">Your role does not have access to this page.</div>;
+  return can(perm) ? <>{children}</> : <div className="card p-8 text-center text-sm text-ink-500">Your role does not have access to this page.</div>;
 }
 
 function Shell() {
