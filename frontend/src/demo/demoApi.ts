@@ -4,7 +4,7 @@
 import type { Api, AuditRow, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReportRow, SettingsData, UserRow } from "../api/types";
 import { fullAnalysis, normalize } from "./engine";
 
-const KEY = "pulse.demo.v1";
+const KEY = "pulse.demo.v2";
 const SESSION = "pulse.demo.session";
 const PLATFORMS: Record<string, string> = { google_business: "Google Business Profile", facebook_page: "Facebook Page comments", messenger: "Facebook Messenger", manual: "Manual entry" };
 const ROLE_PERMS: Record<string, string[]> = {
@@ -22,7 +22,7 @@ export const DEMO_ACCOUNTS = [
 interface DemoUser extends UserRow { pw: string }
 interface Rec extends FeedbackDetail { hash: string }
 interface Store {
-  feedback: Rec[]; notifications: (Notice & { dedupe: string; read_by: string[] })[]; reports: (ReportRow & { filters: Filters })[];
+  feedback: Rec[]; notifications: (Notice & { dedupe: string; read_by: string[] })[]; reports: (ReportRow & { filters: Filters; sample?: boolean })[];
   audit: AuditRow[]; users: DemoUser[]; settings: SettingsData; insights: Insight[]; seq: number;
 }
 
@@ -33,57 +33,31 @@ const DEFAULT_SETTINGS: SettingsData = {
   retention: { feedback_days: 730, audit_days: 1095 },
 };
 
-// ---------- sample data (same templates as backend/app/integrations/sample_data.py) ----------
-const SERVICES = ["IV drip", "facial", "consultation", "laser session", "skin treatment"];
-const STAFF = ["nurse", "receptionist", "doctor", "front desk staff", "therapist"];
-const BRANCHES = ["Timog branch", "Mandaluyong branch", "QC branch"];
-const TEMPLATES: Record<string, [string, number | null][]> = {
-  google_business: [
-    ["Ang ganda ng service! Super accommodating ng {staff}. Highly recommend!", 5], ["Clean and relaxing place. The {svc} was worth it, will come back.", 5],
-    ["Okay naman ang {svc} pero sobrang tagal ng waiting time, almost 2 hours.", 2], ["Very professional doctors, you know you're in safe hands.", 5],
-    ["Mahal for what you get. Expected more from the {svc}.", 2], ["Wow, excellent service! I waited for five hours.", 1],
-    ["The {staff} was rude when I asked about my schedule. Disappointing.", 1], ["Malinis at maayos ang {branch}. Mabait ang mga staff.", 5],
-    ["Good results after my third {svc} session. Salamat po!", 4], ["Average experience, nothing special.", 3],
-    ["Parking is hard to find near the {branch}.", 3], ["Nagka-pantal ako after ng {svc}, sana ma-check ninyo kung bakit.", 1],
-    ["Sulit ang promo package, smooth ang booking process.", 5], ["Booking online keeps failing, nag error yung form twice.", 2],
-    ["Friendly staff pero medyo magulo ang pila sa reception.", 3],
-  ],
-  facebook_page: [
-    ["Magkano po ang {svc} ngayon?", null], ["Available pa po ba ang promo hanggang December?", null], ["Ang galing ng results ko, salamat sa buong team!", null],
-    ["Sana may branch kayo sa Cavite or Laguna.", null], ["Bakit po walang sumasagot sa page? Ilang araw na akong nag message.", null],
-    ["Super satisfied with the {svc}! Glowing ang skin ko.", null], ["Okay sana pero disappointing ang experience sa {branch}.", null],
-    ["Paano po mag book for this weekend?", null], ["Overpriced. Mas mura sa ibang clinic.", null], ["Grabe ang ganda ng lounge, very relaxing!", null],
-    ["Seen lang yung message ko, nakakainis.", null], ["Thank you sa mabilis na reply kahapon!", null], ["Is the {svc} safe for pregnant women?", null],
-    ["Hindi maganda ang experience ko, sobrang bagal ng process.", null], ["Congrats on 13 years! Best clinic ever.", null],
-  ],
-  messenger: [
-    ["Hi po, pwede po bang magtanong about the {svc}?", null], ["Follow up lang po sa refund ko, wala pa rin hanggang ngayon.", null],
-    ["Pa-assist po, hindi ko ma-book yung slot sa website.", null], ["Nag message na ako last week, any update po?", null],
-    ["Thank you po sa accommodating na {staff}!", null], ["Nahilo po ako after ng {svc} kahapon, normal po ba yun?", null],
-    ["Can I reschedule my appointment to Saturday?", null], ["Charged twice po ako sa GCash, paki check naman po.", null],
-    ["Saan po ang exact address ng {branch}?", null], ["Ang tagal ng reply, 3 days na ako naghihintay.", null],
-    ["Please call me, I need help with my package.", null], ["Salamat po, ang ganda ng resulta!", null], ["May slot pa po ba bukas ng hapon?", null],
-    ["Hindi pa rin po resolved yung concern ko. Nakakadismaya.", null], ["Okay lang po, nakapag book na ako. Thanks!", null],
-  ],
-};
+// ---------- sample data (same templates and logic as backend/app/integrations/sample_data.py) ----------
+import SAMPLE from "./sample_templates.json";
+type Tpl = [string, number | null][];
+const TEMPLATES: Record<string, Tpl> = { google_business: SAMPLE.google_business as Tpl, facebook_page: SAMPLE.facebook_page as Tpl, messenger: SAMPLE.messenger as Tpl };
+const COMPLAINT_HINTS = ["tagal", "wala pa", "seen", "update", "follow up", "refund", "sumasagot", "late", "pila"];
 
 function rng(seed: number) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const pick = <T,>(r: () => number, a: T[]) => a[Math.floor(r() * a.length)];
 const pickW = <T,>(r: () => number, items: T[], w: number[]) => { const s = w.reduce((a, b) => a + b, 0); let x = r() * s; for (let i = 0; i < items.length; i++) { x -= w[i]; if (x < 0) return items[i]; } return items[items.length - 1]; };
 
-function generateSample(): { platform: string; content: string; rating: number | null; author: string; created_at: string }[] {
-  const r = rng(13); const now = new Date(); now.setMinutes(0, 0, 0); const out = [];
-  for (let d = 120; d >= 0; d--) {
-    const recent = d < 21;
-    const count = pickW(r, [0, 1, 2, 3], [1, 3, 3, recent ? 1.4 : 1]);
+function generateSample(days = 240): { platform: string; content: string; rating: number | null; author: string; created_at: string }[] {
+  const r = rng(13); const now = new Date(); const out = [];
+  for (let d = days; d >= 0; d--) {
+    const day = new Date(now.getTime() - d * 86400000);
+    const recent = d < 21, weekend = day.getDay() === 0 || day.getDay() === 6;
+    const count = pickW(r, [1, 2, 3, 4, 5, 6], [1, 2, 3, 3, 2, recent || weekend ? 1.5 : 0.8]);
     for (let i = 0; i < count; i++) {
-      const platform = pickW(r, ["google_business", "facebook_page", "messenger"], [0.35, 0.4, 0.25]);
+      const platform = pickW(r, ["google_business", "facebook_page", "messenger"], [0.38, 0.37, 0.25]);
       let pool = TEMPLATES[platform];
-      if (recent) pool = [...pool, ...pool.filter(([t, rt]) => rt === 1 || rt === 2 || ["tagal", "wala pa", "seen", "update"].some((w) => t.toLowerCase().includes(w)))];
+      if (recent) pool = [...pool, ...pool.filter(([t, rt]) => rt === 1 || rt === 2 || COMPLAINT_HINTS.some((w) => t.toLowerCase().includes(w)))];
       const [tpl, rating] = pick(r, pool);
-      const text = tpl.replace("{svc}", pick(r, SERVICES)).replace("{staff}", pick(r, STAFF)).replace("{branch}", pick(r, BRANCHES));
-      const dt = new Date(now.getTime() - d * 86400000); dt.setHours(8 + Math.floor(r() * 14), Math.floor(r() * 60));
-      out.push({ platform, content: text, rating, author: `sample-customer-${1 + Math.floor(r() * 60)}`, created_at: dt.toISOString() });
+      const text = tpl.replace("{svc}", pick(r, SAMPLE.services)).replace("{staff}", pick(r, SAMPLE.staff)).replace("{branch}", pick(r, SAMPLE.branches));
+      let dt = new Date(day); dt.setHours(8 + Math.floor(r() * 14), Math.floor(r() * 60), 0, 0);
+      if (dt > now) dt = new Date(+now - (5 + Math.floor(r() * 85)) * 60000); // never in the future
+      out.push({ platform, content: text, rating, author: `sample-customer-${1 + Math.floor(r() * 400)}`, created_at: dt.toISOString() });
     }
   }
   return out;
@@ -106,6 +80,7 @@ async function db(): Promise<Store> {
     for (const a of DEMO_ACCOUNTS) users.push({ id: uid(), email: a.email, full_name: a.full_name, role: a.role, is_active: true, last_login_at: null, created_at: new Date().toISOString(), pw: await sha(a.password) });
     store = { feedback: [], notifications: [], reports: [], audit: [], users, settings: structuredClone(DEFAULT_SETTINGS), insights: [], seq: 1 };
     for (const s of generateSample()) ingest(s.platform, s.content, s.rating, s.author, s.created_at, true, false);
+    seedLibrary(store);
     periodicChecks();
     save();
   }
@@ -274,6 +249,71 @@ function compose(agg: ReturnType<typeof aggregates>): InsightSummary {
   };
 }
 
+// ---------- ready-made sample library: team, handled messages, past summaries and reports ----------
+function seedLibrary(s: Store) {
+  const r = rng(7); const now = new Date(); const day = 86400000;
+  const iso = (d: Date) => d.toISOString();
+  const team: [string, string, string][] = [["Maria Santos", "maria@demo.likha", "ADMIN"], ["Paolo Reyes", "paolo@demo.likha", "ANALYST"], ["Andrea Cruz", "andrea@demo.likha", "ANALYST"], ["Jose Lim", "jose@demo.likha", "VIEWER"]];
+  for (const [name, email, role] of team)
+    s.users.push({ id: uid(), email, full_name: name, role, is_active: true, last_login_at: iso(new Date(+now - Math.floor(r() * 5) * day - 3600000)), created_at: iso(new Date(+now - 200 * day)), pw: "" });
+  const staff = ["Maria Santos", "Paolo Reyes", "Andrea Cruz"];
+  // older urgent items were handled; many unclear ones were checked by the team
+  for (const f of s.feedback) {
+    const age = (+now - +new Date(f.created_at)) / day;
+    if (age < 3) continue;
+    const when = iso(new Date(+new Date(f.created_at) + (0.2 + r()) * day));
+    const who = pick(r, staff);
+    if (["critical", "high"].includes(f.priority) && r() < 0.8) {
+      f.action_status = "resolved";
+      s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "feedback_status", entity: "feedback", entity_id: f.id, details: { status: "resolved" }, ip: "sample", created_at: when });
+    }
+    if (f.review_status === "pending_review" && r() < 0.65) {
+      f.review_status = "reviewed";
+      f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
+      s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "feedback_reviewed", entity: "feedback", entity_id: f.id, details: {}, ip: "sample", created_at: when });
+    } else if (f.review_status === "unreviewed" && r() < 0.12) {
+      f.review_status = "reviewed";
+      f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
+    }
+  }
+  // past AI summaries: the last 4 full months + the last 30 days
+  const months: [Date, Date][] = [];
+  for (let m = 4; m >= 1; m--) { const a = new Date(now.getFullYear(), now.getMonth() - m, 1); const b = new Date(now.getFullYear(), now.getMonth() - m + 1, 0, 23, 59, 59); months.push([a, b]); }
+  const periods: [Date, Date][] = [...months, [new Date(+now - 30 * day), now]];
+  const made: Insight[] = [];
+  for (const [a, b] of periods) {
+    const f = { date_from: iso(a), date_to: iso(b) };
+    const agg = aggregates(s, f);
+    if (!agg.current.total) continue;
+    const created = b > now ? now : new Date(+b + day);
+    made.push({ id: s.seq++, summary: compose(agg), aggregates: agg, engine: "rule", filters: {}, period: agg.period, created_at: iso(created) });
+  }
+  s.insights = made.reverse();
+  // ready-made reports (generated on download from the sample data)
+  const mname = (d: Date) => d.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+  const specs: [string, string, Date, Date, Filters][] = [
+    ...months.map(([a, b]) => ["monthly", "pdf", a, b, {}] as [string, string, Date, Date, Filters]),
+    ["overall", "xlsx", new Date(+now - 90 * day), now, {}],
+    ["complaints", "pdf", new Date(+now - 30 * day), now, {}],
+    ["priority", "pdf", new Date(+now - 30 * day), now, {}],
+    ["negative", "csv", new Date(+now - 30 * day), now, {}],
+    ["positive", "xlsx", new Date(+now - 30 * day), now, {}],
+    ["platform", "pdf", new Date(+now - 90 * day), now, { platform: "google_business" }],
+    ["platform", "pdf", new Date(+now - 90 * day), now, { platform: "messenger" }],
+    ["insights", "pdf", new Date(+now - 30 * day), now, {}],
+  ];
+  const reps = specs.map(([type, fmt, a, b, extra], i) => ({
+    id: s.seq++, report_type: type, file_format: fmt, sample: true,
+    name: type === "monthly" ? `Monthly Sentiment Report — ${mname(a)}` : type === "platform" ? `${REPORT_TYPES[type]} — ${PLATFORMS[extra.platform!]}` : REPORT_TYPES[type],
+    period: { from: iso(a), to: iso(b) }, created_at: iso(new Date(Math.min(+now - (specs.length - i) * 3600000, +b + day))),
+    filters: { ...extra, date_from: iso(a), date_to: iso(b) },
+  }));
+  s.reports = reps.sort((x, y) => +new Date(y.created_at) - +new Date(x.created_at));
+  for (const rp of s.reports) s.audit.push({ id: s.seq++, actor: "maria@demo.likha", action: "report_generated", entity: "report", entity_id: String(rp.id), details: { type: rp.report_type, format: rp.file_format }, ip: "sample", created_at: rp.created_at });
+  for (const u of s.users) if (u.last_login_at) s.audit.push({ id: s.seq++, actor: u.email, action: "login", entity: "user", entity_id: u.id, details: {}, ip: "sample", created_at: u.last_login_at });
+  s.audit.sort((x, y) => +new Date(y.created_at) - +new Date(x.created_at));
+}
+
 // ---------- helpers ----------
 let me: Me | null = null;
 const detail = (r: Rec): FeedbackDetail => { const { hash, ...rest } = r; void hash; return structuredClone(rest); };
@@ -371,7 +411,7 @@ export const demoApi: Api = {
   async downloadReport(rep) {
     const s = await db(); const full = s.reports.find((x) => x.id === rep.id)!; const f = scope(full.report_type, full.filters);
     const [from, to] = period(f); const rows = filterRows(s, { ...f, date_from: from.toISOString(), date_to: to.toISOString() });
-    const agg = aggregates(s, f); const text = compose(agg); const c = agg.current; const title = full.name + (f.platform ? ` — ${PLATFORMS[f.platform]}` : "");
+    const agg = aggregates(s, f); const text = compose(agg); const c = agg.current; const title = full.name.includes(" — ") || !f.platform ? full.name : `${full.name} — ${PLATFORMS[f.platform]}`;
     const per = `${from.toDateString()} – ${to.toDateString()}`;
     if (full.file_format === "csv") {
       const q = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;

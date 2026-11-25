@@ -39,9 +39,11 @@ def test_human_review_keeps_ai_prediction(client, admin_headers):
     fb = client.post("/api/feedback", json={"content": "Wow, excellent service! I waited for five hours.", "author": "u2"},
                      headers=admin_headers).json()
     assert fb["review_status"] == "pending_review" and fb["possible_sarcasm"]
-    r = client.post(f"/api/feedback/{fb['id']}/review", json={"priority": "high", "note": "Confirmed sarcasm"}, headers=admin_headers).json()
-    assert r["priority"] == "high" and r["ai"]["priority"] == "medium"
-    assert r["review_status"] == "reviewed" and r["reviews"][0]["original"] == "medium"
+    ai_level = fb["priority"]
+    new_level = "critical" if ai_level != "critical" else "low"
+    r = client.post(f"/api/feedback/{fb['id']}/review", json={"priority": new_level, "note": "Confirmed sarcasm"}, headers=admin_headers).json()
+    assert r["priority"] == new_level and r["ai"]["priority"] == ai_level  # AI prediction preserved
+    assert r["review_status"] == "reviewed" and r["reviews"][0]["original"] == ai_level
     logs = client.get("/api/audit?action=feedback_reviewed", headers=admin_headers).json()
     assert logs and logs[0]["entity_id"] == fb["id"]
 

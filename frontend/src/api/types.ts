@@ -52,7 +52,7 @@ export interface Integration {
   last_sync_at: string | null; feedback_count: number; sample_count: number;
 }
 export interface Notice { id: number; kind: string; severity: string; title: string; message: string; feedback_id: string | null; read: boolean; created_at: string }
-export interface ReportRow { id: number; report_type: string; name: string; file_format: string; period: { from: string; to: string }; created_at: string }
+export interface ReportRow { id: number; report_type: string; name: string; file_format: string; period: { from: string; to: string }; created_at: string; sample?: boolean }
 export interface UserRow { id: string; email: string; full_name: string; role: string; is_active: boolean; last_login_at: string | null; created_at: string }
 export interface AuditRow { id: number; actor: string; action: string; entity: string; entity_id: string; details: any; ip: string; created_at: string }
 export interface SettingsData {

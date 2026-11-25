@@ -2,7 +2,7 @@ import { Download, FileSpreadsheet, FileText, Sheet } from "lucide-react";
 import { useState } from "react";
 import { api, IS_DEMO } from "../api";
 import FilterBar, { useFilters } from "../components/FilterBar";
-import { Card, Empty, ErrorBox, PageHeader, Select, Spinner } from "../components/ui";
+import { Card, Empty, ErrorBox, PageHeader, SampleTag, Select, Spinner } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { fmtDate } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
@@ -44,7 +44,7 @@ export default function Reports() {
         {list.loading ? <Spinner /> : !list.data?.length ? <Empty title="No reports yet">Your downloaded reports will be listed here.</Empty> : (
           <div className="overflow-x-auto"><table className="w-full min-w-[640px]"><thead><tr>{["Report", "File", "Covers", "Made", ""].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
             <tbody>{list.data.map((r) => (
-              <tr key={r.id}><td className="td font-medium">{r.name}</td><td className="td"><span className="inline-flex items-center gap-1.5 uppercase">{ICON[r.file_format]}{r.file_format}</span></td>
+              <tr key={r.id}><td className="td font-medium">{r.name}{r.sample && <span className="ml-2 align-middle"><SampleTag /></span>}</td><td className="td"><span className="inline-flex items-center gap-1.5 uppercase">{ICON[r.file_format]}{r.file_format}</span></td>
                 <td className="td text-sm text-ink-500">{fmtDate(r.period.from, false)} – {fmtDate(r.period.to, false)}</td><td className="td text-sm text-ink-400">{fmtDate(r.created_at)}</td>
                 <td className="td text-right"><button className="btn-secondary" onClick={() => api.downloadReport(r).catch(setErr)}><Download className="h-4 w-4" />Download</button></td></tr>
             ))}</tbody></table></div>
