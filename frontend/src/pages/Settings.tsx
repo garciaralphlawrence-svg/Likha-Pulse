@@ -58,6 +58,16 @@ export default function Settings() {
           </div>
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={s.alerts.email_enabled} onChange={(e) => put("alerts", { email_enabled: e.target.checked })} />Also send urgent alerts by email</label>
         </Card>
+        <Card title="Response clock" subtitle="How fast urgent and important cases must be handled" action={<SaveBtn k="response_clock" />}>
+          {(() => { const rc = { urgent_hours: 24, important_hours: 48, urgent_reply_minutes: 60, important_reply_minutes: 240, ...(s.response_clock ?? {}) }; const setRc = (p: Partial<typeof rc>) => setS((x) => x && ({ ...x, response_clock: { ...rc, ...p } })); return (
+            <div className="grid grid-cols-2 gap-3">
+              <Num label="Solve urgent within (hours)" value={rc.urgent_hours} onChange={(n) => setRc({ urgent_hours: n })} />
+              <Num label="Solve important within (hours)" value={rc.important_hours} onChange={(n) => setRc({ important_hours: n })} />
+              <Num label="First reply to urgent (minutes)" value={rc.urgent_reply_minutes} onChange={(n) => setRc({ urgent_reply_minutes: n })} />
+              <Num label="First reply to important (minutes)" value={rc.important_reply_minutes} onChange={(n) => setRc({ important_reply_minutes: n })} />
+            </div>); })()}
+          <p className="mt-2 text-xs text-ink-400">Colors change every quarter of the time: green, yellow, orange, red, then overdue. New deadlines apply to new cases.</p>
+        </Card>
         <Card title="How long to keep messages" action={<SaveBtn k="retention" />}>
           <div className="grid grid-cols-2 gap-3">
             <Num label="Keep messages (days)" value={s.retention.feedback_days} onChange={(n) => put("retention", { feedback_days: n })} />

@@ -29,7 +29,7 @@
     "lugi": -2, "ripoff": -2.5, "rip off": -2.5, "mess": -1.5, "gulo": -1.5, "magulo": -1.5, "confusing": -1.5,
     "naghintay": -1, "waited": -1, "pinaghintay": -2, "hanggang ngayon": -1.5, "wala pa rin": -2, "still waiting": -2,
     "unresolved": -2, "not resolved": -2, "hindi pa rin": -1.5, "namaga": -2.5, "swelling": -2, "side effect": -2, "side effects": -2,
-    "stranded": -3, "naiwan": -2, "nilalagnat": -2.5, "may lagnat": -2.5, "offloaded": -2.5, "na-offload": -2.5, "food poisoning": -3, "nawala": -2, "lost": -2, "delayed": -1.5, "masikip": -1.5, "unsafe": -2.5, "rushed": -1.5, "mabaho": -2, "smelled bad": -2
+    "stranded": -3, "naiwan": -2, "naaksidente": -3, "aksidente": -2.5, "accident": -2.5, "sugat": -2, "may sugat": -2.5, "nagsusuka": -2.5, "injured": -2.5, "nilalagnat": -2.5, "may lagnat": -2.5, "offloaded": -2.5, "na-offload": -2.5, "food poisoning": -3, "nawala": -2, "lost": -2, "delayed": -1.5, "masikip": -1.5, "unsafe": -2.5, "rushed": -1.5, "mabaho": -2, "smelled bad": -2
   },
   "negators": ["hindi", "di", "not", "no", "never", "wala", "walang", "isnt", "wasnt", "dont", "didnt", "doesnt", "hnd", "d", "nope", "aint"],
   "intensifiers": {
@@ -68,7 +68,7 @@
     "Booking & Reservations": ["book", "booking", "reservation", "schedule", "sched", "slot", "slots", "reschedule", "cancelled", "cancel", "confirmation", "fully booked", "e-ticket", "ticket"],
     "Flights & Transfers": ["flight", "flights", "airport", "transfer", "transfers", "pickup", "pick up", "sundo", "van", "bus", "boat", "bangka", "ferry", "meeting point"],
     "Visa & Travel Documents": ["visa", "passport", "documents", "requirements", "embassy", "offload", "offloaded", "immigration", "travel insurance", "insurance"],
-    "Safety & Health": ["accident", "naaksidente", "aksidente", "injured", "nasugatan", "food poisoning", "nilalagnat", "lagnat", "fever", "nahilo", "dizzy", "seasick", "unsafe", "stranded", "naiwan", "lost passport", "nawala passport", "nawala po passport", "nawala ang passport", "doctor", "hospital", "ospital"],
+    "Safety & Health": ["accident", "naaksidente", "aksidente", "injured", "nasugatan", "sugat", "nagsusuka", "food poisoning", "nilalagnat", "lagnat", "fever", "nahilo", "dizzy", "seasick", "unsafe", "stranded", "naiwan", "lost passport", "nawala passport", "nawala po passport", "nawala ang passport", "doctor", "hospital", "ospital"],
     "Payment & Refunds": ["refund", "payment", "gcash", "charged", "charge", "bayad", "receipt", "resibo", "card", "credit card"],
     "Destinations": ["destination", "boracay", "el nido", "coron", "palawan", "bohol", "siargao", "cebu", "japan", "seoul", "korea", "hong kong", "taiwan", "vietnam", "bali", "island"],
     "Online Experience": ["website", "site", "app", "link", "page", "online", "form", "payment page"]

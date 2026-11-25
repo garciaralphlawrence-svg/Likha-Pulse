@@ -53,6 +53,8 @@ Used by `/api/feedback`, `/api/dashboard`, `/api/insights/generate` and `/api/re
 | `GET/POST /api/users`, `PATCH /api/users/{id}`, `GET /api/roles` | users.manage | User management |
 | `GET /api/settings`, `PUT /api/settings/{key}` | settings.manage | `sentiment_thresholds`, `confidence_thresholds`, `ai_provider`, `alerts`, `retention` |
 | `GET /api/audit` | audit.view | `action`, `page` |
+| `GET /api/cases` | feedback.view | Response Clock cases. `view` = `open` (most urgent first), `solved` or `all`. Returns `items`, `stats` and `team` |
+| `POST /api/cases/{id}/actions` | feedback.manage | `{"kind": "assign" \| "reply" \| "step" \| "note" \| "solve" \| "reopen" \| "traveling", "assignee"?, "text"?, "index"?, "value"?}` |
 | `GET /api/health` | public | Liveness check |
 
 ## Example

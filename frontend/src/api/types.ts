@@ -61,7 +61,24 @@ export interface SettingsData {
   ai_provider: { provider: string; claude_model: string; api_key_set: boolean };
   alerts: { negative_spike_pct: number; repeated_complaint_count: number; unresolved_days: number; email_enabled: boolean };
   retention: { feedback_days: number; audit_days: number };
+  response_clock?: { urgent_hours: number; important_hours: number; urgent_reply_minutes: number; important_reply_minutes: number };
 }
+
+export interface CaseUpdate { at: string; by: string; kind: "opened" | "assigned" | "reply" | "step" | "note" | "escalated" | "solved" | "reopened" | "traveling"; text: string }
+export interface CaseInfo {
+  id: string; content: string; platform: string; platform_name: string; author: string; priority: Priority; topic: string; is_sample: boolean;
+  headline: { emotion: string; intent: string; topic: string; sentiment: string };
+  situation: string; traveling_now: boolean; opened_at: string; due_at: string; deadline_hours: number;
+  reply_due_at: string; first_reply_at: string | null; resolved_at: string | null; last_update_at: string;
+  assignee: string | null; escalated: boolean; steps: { text: string; done: boolean }[]; updates: CaseUpdate[];
+}
+export interface CaseStats {
+  open: number; on_track: number; needs_progress: number; at_risk: number; due_soon: number; overdue: number; traveling_now: number; no_reply_yet: number;
+  solved_30d: number; solved_on_time_pct: number | null; avg_solve_minutes: number | null; avg_first_reply_minutes: number | null;
+}
+export type CaseAction =
+  | { kind: "assign"; assignee: string } | { kind: "reply"; text?: string } | { kind: "step"; index: number } | { kind: "note"; text: string }
+  | { kind: "solve"; text?: string } | { kind: "reopen" } | { kind: "traveling"; value: boolean };
 export interface ReviewInput { sentiment?: string; emotion?: string; intent?: string; priority?: string; note?: string; use_for_evaluation?: boolean }
 
 export interface Api {
@@ -96,4 +113,6 @@ export interface Api {
   settings(): Promise<SettingsData>;
   saveSetting(key: keyof SettingsData, value: Record<string, unknown>): Promise<unknown>;
   audit(action?: string, page?: number): Promise<AuditRow[]>;
+  cases(view: "open" | "solved" | "all"): Promise<{ items: CaseInfo[]; stats: CaseStats; team: string[] }>;
+  caseAction(id: string, action: CaseAction): Promise<CaseInfo>;
 }

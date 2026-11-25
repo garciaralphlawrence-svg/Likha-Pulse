@@ -267,6 +267,8 @@ def put_setting(key: str, value: dict, request: Request, user: User = Depends(re
         mod, high = float(value.get("moderate", 0.7)), float(value.get("high", 0.9))
         if not (0 < mod < high <= 1):
             raise HTTPException(400, "moderate must be lower than high, both between 0 and 1")
+    if key == "response_clock" and any(not isinstance(v, (int, float)) or v < 1 for v in value.values()):
+        raise HTTPException(400, "Every response time must be at least 1.")
     if key == "ai_provider" and value.get("provider") == "claude" and not claude_key(db):
         raise HTTPException(400, "Set ANTHROPIC_API_KEY on the server before switching to Claude.")
     merged = set_setting(db, key, value)

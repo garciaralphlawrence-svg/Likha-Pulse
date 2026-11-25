@@ -13,6 +13,7 @@ from app.integrations.base import FetchedItem
 from app.models import Feedback, HumanReview, User
 from app.nlp.pipeline import analyze_feedback, run_analysis
 from app.nlp.rule_engine import EMOTIONS, INTENTS, LEXICON
+from app.services import cases
 from app.services import filters as F
 from app.services.ingestion import ingest
 from app.services.settings_service import get_setting
@@ -94,6 +95,8 @@ def review(fid: str, body: ReviewIn, request: Request, user: User = Depends(requ
         db.add(HumanReview(feedback_id=fb.id, reviewer_id=user.id, field="confirm", original_value=fb.sentiment.final_label,
                            corrected_value=fb.sentiment.final_label, note=body.note or "AI result confirmed", use_for_evaluation=body.use_for_evaluation))
     fb.review_status = "reviewed"
+    if fb.action_status != "resolved":
+        cases.open_case(db, fb, datetime.now(timezone.utc))
     db.commit()
     audit(db, user, "feedback_reviewed", "feedback", fb.id, {"changes": changes, "note": body.note}, request)
     db.refresh(fb)
@@ -111,6 +114,10 @@ def set_status(fid: str, body: StatusIn, request: Request, user: User = Depends(
         raise HTTPException(404, "Feedback not found")
     fb.action_status = body.action_status
     fb.resolved_at = datetime.now(timezone.utc) if body.action_status == "resolved" else None
+    if fb.case and body.action_status == "resolved":
+        cases.solve(fb.case, user.full_name)
+    elif fb.case and fb.case.resolved_at:
+        cases.reopen(fb.case, user.full_name)
     db.commit()
     audit(db, user, "feedback_status", "feedback", fb.id, {"status": body.action_status}, request)
     return feedback_out(fb, detail=True)

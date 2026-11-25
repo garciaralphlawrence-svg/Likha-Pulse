@@ -33,6 +33,24 @@
 3. **Feedback Monitoring** → filter *Review: Pending review* and confirm or correct each item.
 4. Weekly: **AI Insights → Generate new analysis** for the last 7 days; monthly: **Reports → Monthly Sentiment Report**.
 
+## Response Clock
+
+Every **Urgent** or **Important** message becomes a case with a deadline (default: Urgent 24 hours, Important 48 hours; first reply within 1 hour and 4 hours).
+The color shows how much of the time is used:
+
+| Color | Time used | Meaning |
+|---|---|---|
+| Green · On track | 0–25% (0–6h for Urgent) | Plenty of time |
+| Yellow · Needs progress | 25–50% (6–12h) | Make progress now |
+| Orange · At risk | 50–75% (12–18h) | Getting late |
+| Red · Due soon | 75–100% (18–24h) | Escalated to the manager automatically, alert sent |
+| Overdue | past the deadline | Alert sent |
+
+Each case shows the travel situation (on-trip emergency, lost passport, flight or transfer, hotel, refund, visa, booking, tour),
+whether the traveler is on a trip right now, the owner, the first reply time, and a ready **playbook** checklist.
+The team logs replies, steps and notes in the timeline and marks the case as solved. Marking a message as done in the Inbox also solves its case.
+Change the hours in **Settings → Response clock**. Playbooks are in `backend/app/services/playbooks.json`.
+
 ## Human validation
 
 Open any item, change sentiment/emotion/intent/priority, add a note and **Save correction** (or **Confirm AI result**).

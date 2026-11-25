@@ -105,6 +105,7 @@ class Feedback(Base):
     topics: Mapped[list["TopicResult"]] = relationship(lazy="selectin", cascade="all, delete-orphan")
     priority: Mapped["PriorityAssessment | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
     reviews: Mapped[list["HumanReview"]] = relationship(lazy="selectin", cascade="all, delete-orphan", order_by="HumanReview.created_at")
+    case: Mapped["Case | None"] = relationship(back_populates="feedback", uselist=False, cascade="all, delete-orphan")
 
 
 class SentimentResult(Base):
@@ -171,6 +172,27 @@ class HumanReview(Base):
     use_for_evaluation: Mapped[bool] = mapped_column(Boolean, default=False)  # approved-process flag
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     reviewer: Mapped[User] = relationship(lazy="joined")
+
+
+class Case(Base):
+    """Response Clock case: an Urgent or Important message with a deadline, an owner and a travel playbook."""
+    __tablename__ = "cases"
+    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), primary_key=True)
+    situation: Mapped[str] = mapped_column(String(30), default="general")  # emergency | documents | transfer | hotel | refund | visa | booking | tour | general
+    traveling_now: Mapped[bool] = mapped_column(Boolean, default=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    deadline_hours: Mapped[int] = mapped_column(Integer, default=24)
+    reply_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    first_reply_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    last_update_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    assignee_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    escalated: Mapped[bool] = mapped_column(Boolean, default=False)
+    steps: Mapped[list] = mapped_column(JSON, default=list)  # [{text, done}]
+    updates: Mapped[list] = mapped_column(JSON, default=list)  # [{at, by, kind, text}]
+    feedback: Mapped[Feedback] = relationship(back_populates="case", lazy="joined")
+    assignee: Mapped[User | None] = relationship(lazy="joined")
 
 
 class AIInsight(Base):

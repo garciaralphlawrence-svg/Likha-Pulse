@@ -75,4 +75,6 @@ export const serverApi: Api = {
   settings: () => req("/api/settings"),
   saveSetting: (key, value) => req(`/api/settings/${key}`, { method: "PUT", body: JSON.stringify(value) }),
   audit: (action, page = 1) => req(`/api/audit${qs({}, { action, page })}`),
+  cases: (view) => req(`/api/cases${qs({}, { view })}`),
+  caseAction: (id, action) => post(`/api/cases/${id}/actions`, action),
 };

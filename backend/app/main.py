@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, feedback, management
+from app.api import cases as cases_api
 from app.core.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.bootstrap import bootstrap
@@ -49,6 +50,7 @@ async def security_headers(request, call_next):
 app.include_router(auth.router)
 app.include_router(feedback.router)
 app.include_router(management.router)
+app.include_router(cases_api.router)
 
 
 @app.get("/api/health", tags=["system"])

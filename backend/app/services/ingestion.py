@@ -44,6 +44,9 @@ def ingest(db: Session, platform_code: str, item: FetchedItem, is_sample: bool =
     db.add(fb)
     db.flush()
     analyze_feedback(db, fb, commit=True)
+    from app.services.cases import open_case
+    if open_case(db, fb):
+        db.commit()
     if notify:
         notifications.on_new_feedback(db, fb)
     return fb
@@ -78,5 +81,7 @@ def seed_sample(db: Session) -> int:
                            author=row["author"], rating=row["rating"])
         if ingest(db, row["platform"], item, is_sample=True, notify=False):
             n += 1
+    from app.services.cases import seed_cases
+    n += seed_cases(db)
     notifications.run_periodic_checks(db)
     return n

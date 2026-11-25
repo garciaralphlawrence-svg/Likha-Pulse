@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Bell, FileText, Inbox, LayoutDashboard, LogOut, Menu, Plug, ScrollText, Settings, Siren, Sparkles, Users, Wand2, X } from "lucide-react";
+import { Bell, FileText, Inbox, LayoutDashboard, LogOut, Menu, Plug, ScrollText, Settings, Siren, Sparkles, Timer, Users, Wand2, X } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { api, IS_DEMO } from "../api";
@@ -13,6 +13,7 @@ const NAV = [
     { to: "/", label: "Overview", icon: LayoutDashboard, perm: "dashboard.view" },
     { to: "/feedback", label: "Inbox", hint: "Comments & chats", icon: Inbox, perm: "feedback.view" },
     { to: "/priority", label: "Needs Attention", icon: Siren, perm: "feedback.view" },
+    { to: "/cases", label: "Response Clock", icon: Timer, perm: "feedback.view" },
     { to: "/insights", label: "AI Summary", icon: Sparkles, perm: "dashboard.view" },
   ] },
   { group: "Tools", items: [
@@ -71,7 +72,7 @@ function Notifications() {
             {data.items.map((n) => (
               <li key={n.id}>
                 <button className={clsx("flex w-full gap-3 px-5 py-3.5 text-left transition hover:bg-white", !n.read && "bg-gold-50/60")}
-                  onClick={() => { api.markRead(n.id).then(load); setOpen(false); if (n.feedback_id) nav(`/feedback?open=${n.feedback_id}`); }}>
+                  onClick={() => { api.markRead(n.id).then(load); setOpen(false); if (n.feedback_id) nav(n.kind.startsWith("case_") ? `/cases?open=${n.feedback_id}` : `/feedback?open=${n.feedback_id}`); }}>
                   <span className={clsx("mt-1.5 h-2 w-2 shrink-0 rounded-full", sev[n.severity] ?? "bg-ink-400")} />
                   <span className="min-w-0">
                     <span className="block text-sm font-medium text-ink-900">{n.title}</span>

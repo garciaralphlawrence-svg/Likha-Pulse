@@ -9,6 +9,7 @@ DEFAULTS: dict[str, dict] = {
     "ai_provider": {"provider": "rule", "claude_model": "claude-opus-5-5", "api_key_set": False},
     "alerts": {"negative_spike_pct": 30, "repeated_complaint_count": 3, "unresolved_days": 3, "email_enabled": False},
     "retention": {"feedback_days": 730, "audit_days": 1095},
+    "response_clock": {"urgent_hours": 24, "important_hours": 48, "urgent_reply_minutes": 60, "important_reply_minutes": 240},
 }
 
 

@@ -1,4 +1,4 @@
-import { ArrowRight, Heart, MessageSquare, Siren, Sparkles, ThumbsDown, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowRight, Heart, MessageSquare, Siren, Sparkles, ThumbsDown, Timer, TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -11,6 +11,7 @@ import { Card, Empty, ErrorBox, PriorityBadge, Spinner } from "../components/ui"
 import { useAuth } from "../lib/auth";
 import { PLATFORM_LABEL, SENT_COLORS, ago, headline } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
+import { STAGES, Stage, dur, stageOf } from "../lib/clock";
 
 const tick = { fontSize: 11, fill: "#8a8f99" };
 const lc = (s: string) => s.toLowerCase().replace(" & ", " and ");
@@ -19,7 +20,7 @@ function briefing(d: D): { icon: JSX.Element; text: JSX.Element; tone: string }[
   const k = d.kpis, out: { icon: JSX.Element; text: JSX.Element; tone: string }[] = [];
   if (!k.total) return [{ icon: <MessageSquare className="h-4 w-4" />, text: <>No new messages in this period.</>, tone: "text-ink-500" }];
   out.push(k.unresolved_high_priority
-    ? { icon: <Siren className="h-4 w-4" />, text: <><b>{k.unresolved_high_priority} message{k.unresolved_high_priority > 1 ? "s need" : " needs"} your attention</b>{k.critical ? ` (${k.critical} urgent)` : ""}. Reply to these first.</>, tone: "text-red-800" }
+    ? { icon: <Siren className="h-4 w-4" />, text: <><b>{k.unresolved_high_priority} message{k.unresolved_high_priority > 1 ? "s still need" : " still needs"} your attention</b>. Reply to these first.</>, tone: "text-red-800" }
     : { icon: <Siren className="h-4 w-4" />, text: <>Nothing urgent. You're all caught up.</>, tone: "text-emerald-800" });
   const happy = k.positive_pct, unhappy = k.negative_pct;
   out.push({ icon: <Heart className="h-4 w-4" />, tone: "text-ink-800",
@@ -35,6 +36,38 @@ function briefing(d: D): { icon: JSX.Element; text: JSX.Element; tone: string }[
   }
   if (k.pending_review) out.push({ icon: <MessageSquare className="h-4 w-4" />, tone: "text-ink-600", text: <>{k.pending_review} message{k.pending_review > 1 ? "s are" : " is"} unclear (maybe sarcasm). Take a quick look in the Inbox.</> });
   return out;
+}
+
+/** Live summary of the Response Clock for the Overview page. */
+function ClockStrip() {
+  const { data } = useAsync(() => api.cases("open"), []);
+  if (!data) return null;
+  const s = data.stats; const now = Date.now();
+  const chips: [Stage, number][] = [["overdue", s.overdue], ["red", s.due_soon], ["orange", s.at_risk], ["yellow", s.needs_progress], ["green", s.on_track]];
+  const next = data.items.slice(0, 3);
+  return (
+    <section className="card p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><p className="eyebrow flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" />Response clock</p>
+          <h2 className="font-display text-2xl font-semibold text-ink-900">{s.open ? `${s.open} case${s.open > 1 ? "s" : ""} on the clock` : "No open cases. Every traveler has been helped."}</h2></div>
+        <Link to="/cases" className="inline-flex items-center gap-1 text-sm text-gold-700 hover:underline">Open the clock <ArrowRight className="h-4 w-4" /></Link>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {chips.map(([k, n]) => <span key={k} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: STAGES[k].soft, color: STAGES[k].color }}><span className="h-2 w-2 rounded-full" style={{ background: STAGES[k].color }} />{STAGES[k].label} · {n}</span>)}
+        {s.solved_on_time_pct != null && <span className="ml-auto self-center text-xs text-ink-400">{s.solved_on_time_pct}% solved on time in the last 30 days</span>}
+      </div>
+      {next.length > 0 && (
+        <ul className="mt-4 divide-y divide-ivory-200">
+          {next.map((c) => { const st = stageOf(c, now); const left = +new Date(c.due_at) - now; return (
+            <li key={c.id}><Link to={`/cases?open=${c.id}`} className="flex items-center gap-3 py-3 hover:bg-ivory-50">
+              <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: STAGES[st].color }} />
+              <span className="min-w-0 flex-1 truncate text-[15px] text-ink-800">“{c.content}”</span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums" style={{ color: STAGES[st].color }}>{left >= 0 ? `${dur(left)} left` : `Overdue ${dur(-left)}`}</span>
+            </Link></li>); })}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function Stat({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
@@ -64,7 +97,7 @@ function TopicBars({ data, color }: { data: { topic: string; count: number }[]; 
 
 export default function Dashboard() {
   const { f, set, setF } = useFilters();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const [open, setOpen] = useState<string | null>(null);
   const days = f.date_from && f.date_to ? (+new Date(f.date_to) - +new Date(f.date_from)) / 86400000 : 30;
   const { data, error, loading, reload } = useAsync(() => api.dashboard(f, days > 120 ? "month" : days > 10 ? "week" : "day"), [JSON.stringify(f)]);
@@ -102,6 +135,8 @@ export default function Dashboard() {
             </ul>
             {k.sample_count > 0 && <p className="relative mt-5 text-xs text-ivory-200/60">Showing sample messages for preview. Real messages appear once Google or Facebook is connected.</p>}
           </section>
+
+          {can("feedback.view") && <ClockStrip />}
 
           <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Stat label="Messages" value={k.total.toLocaleString()} sub="comments, reviews & chats" />

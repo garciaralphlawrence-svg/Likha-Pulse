@@ -11,6 +11,7 @@ const Feedback = lazy(() => import("./pages/Feedback"));
 const Sentiment = lazy(() => import("./pages/Sentiment"));
 const Insights = lazy(() => import("./pages/Insights"));
 const Priority = lazy(() => import("./pages/Priority"));
+const Cases = lazy(() => import("./pages/Cases"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Integrations = lazy(() => import("./pages/Integrations"));
 const UsersPage = lazy(() => import("./pages/Users"));
@@ -35,6 +36,7 @@ function Shell() {
           <Route path="/sentiment" element={<Guard perm="feedback.view"><Sentiment /></Guard>} />
           <Route path="/insights" element={<Guard perm="dashboard.view"><Insights /></Guard>} />
           <Route path="/priority" element={<Guard perm="feedback.view"><Priority /></Guard>} />
+          <Route path="/cases" element={<Guard perm="feedback.view"><Cases /></Guard>} />
           <Route path="/reports" element={<Guard perm="reports.view"><Reports /></Guard>} />
           <Route path="/integrations" element={<Guard perm="dashboard.view"><Integrations /></Guard>} />
           <Route path="/users" element={<Guard perm="users.manage"><UsersPage /></Guard>} />

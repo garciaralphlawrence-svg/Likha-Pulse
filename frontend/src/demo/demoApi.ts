@@ -1,10 +1,11 @@
 // In-browser implementation of the API for the public demo (GitHub Pages).
 // Everything is stored in this browser's localStorage. All feedback is labeled SAMPLE data.
 // The analysis uses the same rule engine as the server (engine.ts is a port of rule_engine.py).
-import type { Api, AuditRow, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReportRow, SettingsData, UserRow } from "../api/types";
+import type { Api, AuditRow, CaseAction, CaseInfo, CaseStats, CaseUpdate, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReportRow, SettingsData, UserRow } from "../api/types";
+import { DEFAULT_CLOCK, SITUATIONS, dur, situationOf, stageOf, travelingNow } from "../lib/clock";
 import { fullAnalysis, normalize } from "./engine";
 
-const KEY = "pulse.demo.v5";
+const KEY = "pulse.demo.v6";
 const SESSION = "pulse.demo.session";
 const PLATFORMS: Record<string, string> = { google_business: "Google Business Profile", facebook_page: "Facebook Page comments", messenger: "Facebook Messenger", manual: "Manual entry" };
 const ROLE_PERMS: Record<string, string[]> = {
@@ -20,10 +21,11 @@ export const DEMO_ACCOUNTS = [
 ];
 
 interface DemoUser extends UserRow { pw: string }
-interface Rec extends FeedbackDetail { hash: string }
+type CaseData = Omit<CaseInfo, "id" | "content" | "platform" | "platform_name" | "author" | "priority" | "topic" | "is_sample" | "headline">;
+interface Rec extends FeedbackDetail { hash: string; case?: CaseData }
 interface Store {
   feedback: Rec[]; notifications: (Notice & { dedupe: string; read_by: string[] })[]; reports: (ReportRow & { filters: Filters; sample?: boolean })[];
-  audit: AuditRow[]; users: DemoUser[]; settings: SettingsData; insights: Insight[]; seq: number;
+  audit: AuditRow[]; users: DemoUser[]; settings: SettingsData; insights: Insight[]; seq: number; seeded_at?: string;
 }
 
 const DEFAULT_SETTINGS: SettingsData = {
@@ -31,6 +33,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   ai_provider: { provider: "rule", claude_model: "claude-opus-5-5", api_key_set: false },
   alerts: { negative_spike_pct: 30, repeated_complaint_count: 3, unresolved_days: 3, email_enabled: false },
   retention: { feedback_days: 730, audit_days: 1095 },
+  response_clock: { ...DEFAULT_CLOCK },
 };
 
 // ---------- sample data (same templates and logic as backend/app/integrations/sample_data.py) ----------
@@ -75,10 +78,12 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catc
 async function db(): Promise<Store> {
   if (store) return store;
   try { const raw = localStorage.getItem(KEY); if (raw) store = JSON.parse(raw); } catch { store = null; }
+  // the sample world is rebuilt once a day, so the response clocks always show realistic, current cases
+  if (store && (!store.seeded_at || Date.now() - +new Date(store.seeded_at) > 20 * 3600000)) store = null;
   if (!store) {
     const users: DemoUser[] = [];
     for (const a of DEMO_ACCOUNTS) users.push({ id: uid(), email: a.email, full_name: a.full_name, role: a.role, is_active: true, last_login_at: null, created_at: new Date().toISOString(), pw: await sha(a.password) });
-    store = { feedback: [], notifications: [], reports: [], audit: [], users, settings: structuredClone(DEFAULT_SETTINGS), insights: [], seq: 1 };
+    store = { feedback: [], notifications: [], reports: [], audit: [], users, settings: structuredClone(DEFAULT_SETTINGS), insights: [], seq: 1, seeded_at: new Date().toISOString() };
     for (const s of generateSample()) ingest(s.platform, s.content, s.rating, s.author, s.created_at, true, false);
     seedLibrary(store);
     periodicChecks();
@@ -114,6 +119,7 @@ function ingest(platform: string, content: string, rating: number | null, author
     created_at, collected_at: new Date().toISOString(), is_sample: sample, source_url: null, external_id: null, parent_reference: null, reviews: [],
   };
   s.feedback.push(rec);
+  openCase(rec);
   if (notify) onNew(rec);
   return rec;
 }
@@ -144,7 +150,96 @@ function periodicChecks() {
     if (["critical", "high"].includes(f.priority) && f.action_status !== "resolved" && age >= cfg.unresolved_days && age <= 60)
       n += push("unresolved", "high", "Unresolved high-priority feedback", `Open for more than ${cfg.unresolved_days} days: ${f.content.slice(0, 140)}`, `unresolved:${f.id}`, f.id);
   }
+  return n + clockChecks();
+}
+
+
+// ---------- response clock (cases) ----------
+const clockCfg = () => ({ ...DEFAULT_CLOCK, ...(store!.settings.response_clock ?? {}) });
+function openCase(r: Rec, at = r.created_at) {
+  if (r.case || !["critical", "high"].includes(r.priority)) return;
+  const cfg = clockCfg(); const urgent = r.priority === "critical";
+  const hours = urgent ? cfg.urgent_hours : cfg.important_hours; const replyMin = urgent ? cfg.urgent_reply_minutes : cfg.important_reply_minutes;
+  const t = +new Date(at); const situation = situationOf(r.content, r.topic);
+  r.case = {
+    situation, traveling_now: travelingNow(r.content, situation), opened_at: new Date(t).toISOString(), due_at: new Date(t + hours * 3600000).toISOString(), deadline_hours: hours,
+    reply_due_at: new Date(t + replyMin * 60000).toISOString(), first_reply_at: null, resolved_at: null, last_update_at: new Date(t).toISOString(),
+    assignee: null, escalated: false, steps: SITUATIONS[situation].steps.map((text) => ({ text, done: false })),
+    updates: [{ at: new Date(t).toISOString(), by: "Likha Pulse", kind: "opened", text: `Case opened: ${urgent ? "Urgent" : "Important"}, solve within ${hours} hours` }],
+  };
+}
+function caseInfo(r: Rec): CaseInfo {
+  const c = structuredClone(r.case!);
+  return { ...c, id: r.id, content: r.content, platform: r.platform, platform_name: r.platform_name, author: r.author, priority: r.priority, topic: r.topic, is_sample: r.is_sample,
+    headline: { emotion: r.emotion, intent: r.intent, topic: r.topic, sentiment: r.sentiment } };
+}
+const addUpdate = (c: CaseData, kind: CaseUpdate["kind"], text: string, by: string, at = new Date().toISOString()) => { c.updates.push({ at, by, kind, text }); c.last_update_at = at; };
+function caseStats(s: Store): CaseStats {
+  const now = Date.now(); const all = s.feedback.filter((f) => f.case).map((f) => f.case!);
+  const open = all.filter((c) => !c.resolved_at); const st = (k: string) => open.filter((c) => stageOf(c, now) === k).length;
+  const solved = all.filter((c) => c.resolved_at && now - +new Date(c.resolved_at) < 30 * 86400000);
+  const replied = all.filter((c) => c.first_reply_at && now - +new Date(c.opened_at) < 30 * 86400000);
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  return {
+    open: open.length, on_track: st("green"), needs_progress: st("yellow"), at_risk: st("orange"), due_soon: st("red"), overdue: st("overdue"),
+    traveling_now: open.filter((c) => c.traveling_now).length, no_reply_yet: open.filter((c) => !c.first_reply_at).length, solved_30d: solved.length,
+    solved_on_time_pct: solved.length ? Math.round((100 * solved.filter((c) => +new Date(c.resolved_at!) <= +new Date(c.due_at)).length) / solved.length) : null,
+    avg_solve_minutes: avg(solved.map((c) => (+new Date(c.resolved_at!) - +new Date(c.opened_at)) / 60000)),
+    avg_first_reply_minutes: avg(replied.map((c) => (+new Date(c.first_reply_at!) - +new Date(c.opened_at)) / 60000)),
+  };
+}
+const MANAGER = "Maria Santos";
+function reopenCase(r: Rec) {
+  const c = r.case!; const now = Date.now(); const ms = c.deadline_hours * 3600000;
+  c.resolved_at = null; c.escalated = false; c.opened_at = new Date(now).toISOString(); c.due_at = new Date(now + ms).toISOString();
+  c.reply_due_at = new Date(now + 3600000).toISOString(); r.action_status = "pending_action";
+  addUpdate(c, "reopened", "Reopened: the clock starts again", me?.full_name ?? "Likha Pulse");
+}
+function clockChecks() {
+  const s = store!; const now = Date.now(); let n = 0;
+  for (const r of s.feedback) {
+    const c = r.case; if (!c || c.resolved_at) continue;
+    const stage = stageOf(c, now); const snip = r.content.length > 120 ? r.content.slice(0, 120) + "…" : r.content;
+    if ((stage === "red" || stage === "overdue") && !c.escalated) {
+      c.escalated = true;
+      addUpdate(c, "escalated", `Escalated to ${MANAGER} (manager): less than a quarter of the time is left`, "Likha Pulse", new Date(Math.min(now, +new Date(c.opened_at) + 0.75 * (+new Date(c.due_at) - +new Date(c.opened_at)))).toISOString());
+    }
+    if (stage === "red") n += push("case_due_soon", "critical", `Due in ${dur(+new Date(c.due_at) - now)}: ${SITUATIONS[c.situation].label}`, snip, `due:${r.id}`, r.id);
+    if (stage === "overdue") n += push("case_overdue", "critical", `Overdue: ${SITUATIONS[c.situation].label}`, `Not solved within ${c.deadline_hours} hours. ${snip}`, `overdue:${r.id}`, r.id);
+    if (!c.first_reply_at && now > +new Date(c.reply_due_at)) n += push("case_no_reply", "high", "No reply yet", `The traveler has waited ${dur(now - +new Date(c.opened_at))} for a first reply. ${snip}`, `noreply:${r.id}`, r.id);
+  }
   return n;
+}
+
+// Ready-made live cases so the clock shows every color: [text, platform, hours ago, assignee, first reply after (min), steps done, traveling]
+import PLAYBOOK_DATA from "./playbooks.json";
+const LIVE_CASES: [string, string, number, string | null, number | null, number, boolean][] = PLAYBOOK_DATA.sample_cases.map((c) => [c.text, c.platform, c.hours_ago, c.assignee, c.reply_after_min, c.steps_done, c.traveling]);
+function seedCases(s: Store, r: () => number) {
+  const now = Date.now(); const team = ["Maria Santos", "Paolo Reyes", "Andrea Cruz"]; const live = new Set<string>();
+  for (const [text, platform, hAgo, who, replyMin, done, trav] of LIVE_CASES) {
+    const rec = ingest(platform, text, null, `live-case-${simpleHash(text)}`, new Date(now - hAgo * 3600000).toISOString(), true, false);
+    if (!rec || !rec.case) continue;
+    live.add(rec.id); const c = rec.case; const t0 = +new Date(c.opened_at); c.traveling_now = trav;
+    if (who) addUpdate(c, "assigned", `Assigned to ${who}`, MANAGER, new Date(t0 + 6 * 60000).toISOString());
+    c.assignee = who;
+    if (replyMin != null) { c.first_reply_at = new Date(t0 + replyMin * 60000).toISOString(); addUpdate(c, "reply", "Replied to the traveler", who ?? MANAGER, c.first_reply_at); }
+    for (let i = 0; i < done; i++) { c.steps[i].done = true; addUpdate(c, "step", `Done: ${c.steps[i].text}`, who ?? MANAGER, new Date(Math.min(now - 600000, t0 + (replyMin ?? 30) * 60000 + (i + 1) * 0.12 * hAgo * 3600000)).toISOString()); }
+  }
+  // the generated messages: recent ones stay open on the clock, older ones were solved by the team
+  for (const f of s.feedback) {
+    const c = f.case; if (!c || c.resolved_at || live.has(f.id)) continue;
+    const t0 = +new Date(c.opened_at); const ageH = (now - t0) / 3600000; const who = pick(r, team); const urgent = f.priority === "critical";
+    if (ageH < 1) continue;
+    c.assignee = who; addUpdate(c, "assigned", `Assigned to ${who}`, MANAGER, new Date(t0 + 5 * 60000).toISOString());
+    const replyMin = Math.min(ageH * 60 - 1, urgent ? 8 + r() * 70 : 15 + r() * 260);
+    c.first_reply_at = new Date(t0 + replyMin * 60000).toISOString(); addUpdate(c, "reply", "Replied to the traveler", who, c.first_reply_at);
+    if (ageH >= 30 || f.action_status === "resolved") {
+      const solveH = Math.min(ageH - 0.5, c.deadline_hours * (r() < 0.9 ? 0.15 + r() * 0.8 : 1.05 + r() * 0.5));
+      c.steps.forEach((st) => (st.done = true));
+      c.resolved_at = new Date(t0 + solveH * 3600000).toISOString(); f.action_status = "resolved";
+      addUpdate(c, "solved", `Solved in ${dur(solveH * 3600000)}`, who, c.resolved_at);
+    }
+  }
 }
 
 // ---------- analytics (port of services/analytics.py) ----------
@@ -263,10 +358,6 @@ function seedLibrary(s: Store) {
     if (age < 3) continue;
     const when = iso(new Date(+new Date(f.created_at) + (0.2 + r()) * day));
     const who = pick(r, staff);
-    if (["critical", "high"].includes(f.priority) && r() < 0.8) {
-      f.action_status = "resolved";
-      s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "feedback_status", entity: "feedback", entity_id: f.id, details: { status: "resolved" }, ip: "sample", created_at: when });
-    }
     if (f.review_status === "pending_review" && r() < 0.65) {
       f.review_status = "reviewed";
       f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
@@ -275,6 +366,11 @@ function seedLibrary(s: Store) {
       f.review_status = "reviewed";
       f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
     }
+  }
+  seedCases(s, r);
+  for (const f of s.feedback) if (f.case?.resolved_at) {
+    const who = f.case.assignee ?? "Maria Santos";
+    s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "case_solved", entity: "feedback", entity_id: f.id, details: { minutes: Math.round((+new Date(f.case.resolved_at) - +new Date(f.case.opened_at)) / 60000) }, ip: "sample", created_at: f.case.resolved_at });
   }
   // past AI summaries: the last 4 full months + the last 30 days
   const months: [Date, Date][] = [];
@@ -366,9 +462,14 @@ export const demoApi: Api = {
       const v = body[k]; if (v && v !== r[k]) { r.reviews.push({ field: k, original: String(r[k]), corrected: v, note: body.note ?? "", reviewer: me!.full_name, at: new Date().toISOString() }); (r as any)[k] = v; changes.push({ field: k, to: v }); }
     }
     if (!changes.length) r.reviews.push({ field: "confirm", original: r.sentiment, corrected: r.sentiment, note: body.note || "AI result confirmed", reviewer: me!.full_name, at: new Date().toISOString() });
-    r.review_status = "reviewed"; log("feedback_reviewed", "feedback", id, { changes, note: body.note }); save(); return detail(r);
+    r.review_status = "reviewed"; if (r.action_status !== "resolved") openCase(r, new Date().toISOString()); log("feedback_reviewed", "feedback", id, { changes, note: body.note }); save(); return detail(r);
   },
-  async setStatus(id, status) { need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; r.action_status = status; log("feedback_status", "feedback", id, { status }); save(); return detail(r); },
+  async setStatus(id, status) {
+    need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; r.action_status = status;
+    if (r.case && status === "resolved" && !r.case.resolved_at) { const now = new Date().toISOString(); r.case.resolved_at = now; r.case.first_reply_at ??= now; addUpdate(r.case, "solved", `Solved in ${dur(Date.now() - +new Date(r.case.opened_at))}`, me!.full_name); }
+    if (r.case && status !== "resolved" && r.case.resolved_at) reopenCase(r);
+    log("feedback_status", "feedback", id, { status }); save(); return detail(r);
+  },
   async reanalyze(id) { need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; Object.assign(r, analyzeInto(r, s)); log("feedback_reanalyzed", "feedback", id); save(); return detail(r); },
   async analyze(text, rating) {
     need("feedback.view"); const s = await db(); const a = fullAnalysis(text, rating ?? null, s.settings.sentiment_thresholds); const ct = s.settings.confidence_thresholds;
@@ -455,8 +556,30 @@ export const demoApi: Api = {
     need("settings.manage"); const s = await db();
     if (key === "sentiment_thresholds" && !(Number(value.negative_max) < Number(value.positive_min))) throw new Error("negative_max must be lower than positive_min");
     if (key === "confidence_thresholds" && !(Number(value.moderate) < Number(value.high))) throw new Error("moderate must be lower than high");
+    if (key === "response_clock" && Object.values(value).some((v) => !(Number(v) >= 1))) throw new Error("Every response time must be at least 1.");
     if (key === "ai_provider" && value.provider === "claude") throw new Error("The browser demo cannot call Claude. Set ANTHROPIC_API_KEY on the server version.");
     (s.settings as any)[key] = { ...(s.settings as any)[key], ...value }; log("setting_changed", "setting", key, value); save(); return s.settings[key];
+  },
+  async cases(view) {
+    need("feedback.view"); const s = await db(); clockChecks(); save();
+    const recs = s.feedback.filter((f) => f.case);
+    const open = recs.filter((f) => !f.case!.resolved_at).sort((a, b) => +new Date(a.case!.due_at) - +new Date(b.case!.due_at));
+    const solved = recs.filter((f) => f.case!.resolved_at).sort((a, b) => +new Date(b.case!.resolved_at!) - +new Date(a.case!.resolved_at!)).slice(0, 150);
+    const items = (view === "open" ? open : view === "solved" ? solved : [...open, ...solved]).map(caseInfo);
+    const team = s.users.filter((u) => u.is_active && u.role !== "VIEWER").map((u) => u.full_name);
+    return { items, stats: caseStats(s), team };
+  },
+  async caseAction(id, a: CaseAction) {
+    need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id);
+    if (!r || !r.case) throw new Error("Case not found"); const c = r.case; const by = me!.full_name; const now = new Date().toISOString();
+    if (a.kind === "assign") { c.assignee = a.assignee || null; addUpdate(c, "assigned", a.assignee ? `Assigned to ${a.assignee}` : "Unassigned", by); }
+    else if (a.kind === "reply") { c.first_reply_at ??= now; addUpdate(c, "reply", a.text?.trim() || "Replied to the traveler", by); }
+    else if (a.kind === "step") { const st = c.steps[a.index]; if (!st) throw new Error("Step not found"); st.done = !st.done; addUpdate(c, "step", `${st.done ? "Done" : "Not done"}: ${st.text}`, by); }
+    else if (a.kind === "note") { if (!a.text.trim()) throw new Error("Write a note first."); addUpdate(c, "note", a.text.trim(), by); }
+    else if (a.kind === "solve") { if (!c.resolved_at) { c.resolved_at = now; c.first_reply_at ??= now; r.action_status = "resolved"; addUpdate(c, "solved", `Solved in ${dur(Date.now() - +new Date(c.opened_at))}${a.text?.trim() ? `: ${a.text.trim()}` : ""}`, by); } }
+    else if (a.kind === "reopen") { reopenCase(r); }
+    else if (a.kind === "traveling") { c.traveling_now = a.value; addUpdate(c, "traveling", a.value ? "Marked: traveler is on the trip now" : "Marked: traveler is not on a trip", by); }
+    log("case_" + a.kind, "feedback", id, a); save(); return caseInfo(r);
   },
   async audit(action, page = 1) { need("audit.view"); const rows = (await db()).audit.filter((r) => !action || r.action === action); return rows.slice((page - 1) * 50, page * 50); },
 };

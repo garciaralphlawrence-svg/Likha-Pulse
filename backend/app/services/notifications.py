@@ -96,4 +96,5 @@ def run_periodic_checks(db: Session) -> int:
     for fb in stale:
         created += _push(db, "unresolved", "high", "Unresolved high-priority feedback",
                          f"Open for more than {cfg['unresolved_days']} days: {fb.content[:140]}", f"unresolved:{fb.id}", fb.id)
-    return created
+    from app.services.cases import clock_checks
+    return created + clock_checks(db, _push)

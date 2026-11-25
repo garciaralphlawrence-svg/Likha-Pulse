@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Loader2, X } from "lucide-react";
 import { ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MOOD, PRIO_COLORS, SENT_COLORS, URGENCY, label, pretty, sureness } from "../lib/format";
 
 export function Card({ title, subtitle, action, children, className }: { title?: ReactNode; subtitle?: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
@@ -85,7 +86,8 @@ export function Drawer({ open, onClose, title, children, width = "max-w-xl" }: {
     return () => window.removeEventListener("keydown", k);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // rendered on <body> so the page's entrance animation never shifts or clips it
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className={clsx("relative flex h-full w-full flex-col bg-ivory-50 shadow-lift", width)} style={{ animation: "slideIn .45s cubic-bezier(.2,.7,.2,1) both" }}>
@@ -95,20 +97,20 @@ export function Drawer({ open, onClose, title, children, width = "max-w-xl" }: {
         </div>
         <div className="flex-1 overflow-y-auto p-6">{children}</div>
       </div>
-    </div>
+    </div>, document.body,
   );
 }
 
 export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative w-full max-w-md rounded-2xl bg-ivory-50 p-6 shadow-lift">
         <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl font-semibold">{title}</h2><button className="btn-ghost p-1.5" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button></div>
         {children}
       </div>
-    </div>
+    </div>, document.body,
   );
 }
 

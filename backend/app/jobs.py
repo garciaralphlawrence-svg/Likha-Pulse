@@ -41,7 +41,7 @@ def retention() -> None:
 def start_scheduler() -> BackgroundScheduler:
     sched = BackgroundScheduler(timezone="UTC")
     sched.add_job(sync_all, "interval", minutes=30, id="sync", max_instances=1, coalesce=True)
-    sched.add_job(alerts, "interval", hours=1, id="alerts", max_instances=1, coalesce=True)
+    sched.add_job(alerts, "interval", minutes=10, id="alerts", max_instances=1, coalesce=True)  # includes the Response Clock
     sched.add_job(retention, "cron", hour=3, id="retention", max_instances=1)
     sched.start()
     return sched
