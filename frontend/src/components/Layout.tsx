@@ -142,7 +142,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
         <div className="ml-auto flex items-center gap-1">
           <Notifications />
-          <button className="btn-ghost p-2.5" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut className="h-[18px] w-[18px]" /></button>
+          {!IS_DEMO && <button className="btn-ghost p-2.5" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut className="h-[18px] w-[18px]" /></button>}
         </div>
       </header>
       <main className="mx-auto max-w-[1320px] px-4 py-8 lg:px-10">{children}</main>
