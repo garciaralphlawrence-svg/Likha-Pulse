@@ -1,0 +1,16 @@
+[
+  {"text": "Okay naman ang service pero sobrang tagal ng response.", "label": "negative", "emotion": "frustration", "primary_topic": "Response Time", "intent": "complaint"},
+  {"text": "Wow, excellent service! I waited for five hours.", "label": "negative", "emotion": "frustration", "possible_sarcasm": true},
+  {"text": "Ang ganda ng service!", "label": "positive", "possible_sarcasm": false},
+  {"text": "Sobrang bagal ng process.", "label": "negative"},
+  {"text": "Pwede po bang magtanong?", "label": "neutral", "intent": "inquiry", "priority": "low"},
+  {"text": "Okay sana pero disappointing ang experience.", "label": "negative"},
+  {"text": "Hindi maganda ang experience ko.", "label": "negative"},
+  {"text": "Salamat po sa mabilis na reply, highly recommend!", "label": "positive", "intent": "appreciation"},
+  {"text": "Nagka-allergic reaction ako after ng drip, namaga braso ko.", "label": "negative", "priority": "critical", "primary_topic": "Safety & Health"},
+  {"text": "Is the drip safe for pregnant women?", "intent": "inquiry", "emotion": "concern"},
+  {"text": "Follow up lang po sa refund ko, wala pa rin hanggang ngayon.", "label": "negative", "intent": "follow_up_request", "priority": "high"},
+  {"text": "Sana may branch kayo sa Cavite.", "intent": "suggestion", "priority": "medium"},
+  {"text": "The staff was rude and unprofessional.", "label": "negative", "emotion": "anger", "primary_topic": "Staff Behavior"},
+  {"text": "Hindi mabagal, mabilis nga eh.", "label": "positive"}
+]
