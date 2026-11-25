@@ -6,7 +6,7 @@ const BUBBLES: { t: string; c: string; x: number; d: number }[] = [
   { t: "Ang saya ng Boracay trip!", c: "#2f7d62", x: 6, d: 0 },
   { t: "Late ang sundo sa airport…", c: "#b4544a", x: 74, d: 0.6 },
   { t: "Salamat po! 💛", c: "#2f7d62", x: 20, d: 1.4 },
-  { t: "Magkano po ang Japan tour?", c: "#a99f8f", x: 86, d: 2.1 },
+  { t: "Magkano po ang Japan tour?", c: "#a99f8f", x: 77, d: 2.1 },
   { t: "Highly recommend!", c: "#2f7d62", x: 12, d: 2.7 },
   { t: "Wala pa rin po refund ko", c: "#b4544a", x: 78, d: 3.2 },
   { t: "Super bait ng tour guide", c: "#2f7d62", x: 4, d: 3.9 },
