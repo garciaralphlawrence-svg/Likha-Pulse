@@ -7,12 +7,12 @@ import { ErrorBox, PageHeader, PriorityBadge } from "../components/ui";
 import { FEELING, MOOD, PURPOSE, SENT_COLORS, headline, label, sureness } from "../lib/format";
 
 const EXAMPLES = [
-  "Okay naman ang service pero sobrang tagal ng response.",
-  "Wow, excellent service! I waited for five hours.",
-  "Ang ganda ng service! Super accommodating ng staff.",
-  "Pwede po bang magtanong kung magkano ang facial?",
-  "Nagka-allergic reaction ako after ng treatment, namaga braso ko.",
-  "Follow up lang po sa refund ko, wala pa rin hanggang ngayon.",
+  "Okay naman ang tour pero sobrang tagal ng reply sa inquiry.",
+  "Wow, excellent service! We waited five hours for our van.",
+  "Ang saya ng Boracay trip namin! Super accommodating ng tour guide.",
+  "Pwede po bang magtanong kung magkano ang Japan tour?",
+  "Naiwan po kami ng bangka sa island hopping, stranded kami dito.",
+  "Follow up lang po sa refund ng cancelled tour ko, wala pa rin hanggang ngayon.",
 ];
 
 export default function Sentiment() {
@@ -32,7 +32,7 @@ export default function Sentiment() {
       <PageHeader eyebrow="Ask the AI" title="What is this customer really saying?" description="Paste any comment, review or chat — English, Tagalog or Taglish. Nothing you type here is saved." />
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         <div className="card p-6">
-          <textarea className="input min-h-[170px] resize-none rounded-2xl text-[17px] leading-relaxed" placeholder="e.g. Okay naman ang service pero sobrang tagal ng reply…" value={text} onChange={(e) => setText(e.target.value)} aria-label="Message to review" />
+          <textarea className="input min-h-[170px] resize-none rounded-2xl text-[17px] leading-relaxed" placeholder="e.g. Okay naman ang tour pero sobrang tagal ng sundo sa airport…" value={text} onChange={(e) => setText(e.target.value)} aria-label="Message to review" />
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-xs text-ink-400">Or try one of these:</p>
             <button className="btn-gold" onClick={() => run()} disabled={busy || !text.trim()}><Wand2 className="h-4 w-4" />{busy ? "Reading…" : "Review this message"}</button>

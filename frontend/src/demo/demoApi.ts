@@ -4,7 +4,7 @@
 import type { Api, AuditRow, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReportRow, SettingsData, UserRow } from "../api/types";
 import { fullAnalysis, normalize } from "./engine";
 
-const KEY = "pulse.demo.v4";
+const KEY = "pulse.demo.v5";
 const SESSION = "pulse.demo.session";
 const PLATFORMS: Record<string, string> = { google_business: "Google Business Profile", facebook_page: "Facebook Page comments", messenger: "Facebook Messenger", manual: "Manual entry" };
 const ROLE_PERMS: Record<string, string[]> = {

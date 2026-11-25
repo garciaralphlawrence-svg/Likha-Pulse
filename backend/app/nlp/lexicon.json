@@ -28,7 +28,8 @@
     "bwisit": -2.5, "kawawa": -1.5, "hindi okay": -2, "di okay": -2, "not okay": -2, "useless": -2.5, "walang kwenta": -3,
     "lugi": -2, "ripoff": -2.5, "rip off": -2.5, "mess": -1.5, "gulo": -1.5, "magulo": -1.5, "confusing": -1.5,
     "naghintay": -1, "waited": -1, "pinaghintay": -2, "hanggang ngayon": -1.5, "wala pa rin": -2, "still waiting": -2,
-    "unresolved": -2, "not resolved": -2, "hindi pa rin": -1.5, "namaga": -2.5, "swelling": -2, "side effect": -2, "side effects": -2
+    "unresolved": -2, "not resolved": -2, "hindi pa rin": -1.5, "namaga": -2.5, "swelling": -2, "side effect": -2, "side effects": -2,
+    "stranded": -3, "naiwan": -2, "nilalagnat": -2.5, "may lagnat": -2.5, "offloaded": -2.5, "na-offload": -2.5, "food poisoning": -3, "nawala": -2, "lost": -2, "delayed": -1.5, "masikip": -1.5, "unsafe": -2.5, "rushed": -1.5, "mabaho": -2, "smelled bad": -2
   },
   "negators": ["hindi", "di", "not", "no", "never", "wala", "walang", "isnt", "wasnt", "dont", "didnt", "doesnt", "hnd", "d", "nope", "aint"],
   "intensifiers": {
@@ -45,38 +46,35 @@
     "disappointment": ["disappointing", "disappointed", "nakakadismaya", "dismayado", "sayang", "expected more", "akala ko", "not worth", "di sulit", "hindi sulit", "pangit", "panget"],
     "sadness": ["sad", "malungkot", "lungkot", "nakakaiyak", "iyak", "heartbroken", "kawawa"],
     "confusion": ["confused", "confusing", "naguguluhan", "hindi ko maintindihan", "di ko gets", "paano po", "bakit po", "unclear", "magulo"],
-    "concern": ["worried", "nag-aalala", "nag aalala", "concerned", "safe ba", "safe po ba", "side effect", "allergic", "pantal", "namaga", "masakit", "is it safe", "kinakabahan", "safe for", "pregnant", "buntis", "breastfeeding", "nagpapadede"],
+    "concern": ["worried", "nag-aalala", "nag aalala", "concerned", "safe ba", "safe po ba", "side effect", "allergic", "pantal", "namaga", "masakit", "is it safe", "kinakabahan", "safe for", "pregnant", "buntis", "breastfeeding", "nagpapadede", "stranded", "naiwan", "nawala", "lost passport", "nilalagnat", "unsafe", "wheelchair", "kailangan po ba ng visa"],
     "excitement": ["excited", "can't wait", "cant wait", "excited na", "sabik", "wow", "omg", "grabe ang ganda"]
   },
   "intents": {
     "follow_up_request": ["follow up", "follow-up", "any update", "update po", "ano na po", "wala pa rin", "still waiting", "until now", "hanggang ngayon", "nag message na ako", "i already messaged", "naka ilang message"],
     "request_assistance": ["paki", "pakitulong", "pakiusap", "please help", "help me", "tulungan", "tulong", "assist", "please call", "contact me", "pa assist", "pa-assist", "need help", "patulong"],
-    "reported_problem": ["error", "hindi gumagana", "di gumagana", "not working", "doesnt work", "sira", "bug", "cant book", "hindi ma book", "di ma book", "failed", "nag error", "allergic", "pantal", "namaga", "side effect", "charged twice", "double charge"],
+    "reported_problem": ["error", "hindi gumagana", "di gumagana", "not working", "doesnt work", "sira", "bug", "cant book", "hindi ma book", "di ma book", "failed", "nag error", "allergic", "pantal", "namaga", "side effect", "charged twice", "double charge", "nawala", "stranded", "naiwan", "sira ang aircon", "mali ang spelling", "food poisoning"],
     "suggestion": ["sana", "suggest", "suggestion", "mas maganda kung", "it would be better", "dapat", "should", "pls add", "please add", "sana may", "recommend na", "hope you", "sana mag"],
     "inquiry": ["pwede po ba", "pwede po bang", "pwede ba", "magkano", "how much", "saan", "where", "kailan", "when", "paano", "how do", "how can", "ano po", "what", "available", "open ba", "open po ba", "may slot", "is there", "do you", "may tanong", "magtanong", "inquire", "inquiry", "price list"],
     "appreciation": ["thank you", "thanks", "salamat", "appreciate", "grateful"],
     "compliment": ["galing", "magaling", "ganda", "maganda", "excellent", "great", "amazing", "best", "love", "highly recommend", "mabait", "friendly", "professional"]
   },
   "topics": {
-    "Response Time": ["response", "reply", "replies", "sumasagot", "sumagot", "sagot", "respond", "responding", "seen", "message", "messages", "inquiry", "chat"],
-    "Waiting Time": ["wait", "waited", "waiting", "naghintay", "hintay", "pila", "queue", "hours", "oras", "minutes", "late", "delay", "delayed", "tagal"],
-    "Staff Behavior": ["staff", "nurse", "nurses", "receptionist", "front desk", "attendant", "doctor", "doc", "dra", "mabait", "rude", "bastos", "friendly", "accommodating", "maasikaso", "magalang", "polite"],
-    "Service Quality": ["service", "serbisyo", "process", "proseso", "experience", "treatment", "session", "procedure", "drip", "iv"],
-    "Pricing": ["price", "presyo", "mahal", "expensive", "magkano", "promo", "discount", "sulit", "cheap", "mura", "overpriced", "package", "rate"],
-    "Cleanliness": ["clean", "malinis", "dirty", "madumi", "marumi", "hygiene", "sanitized"],
-    "Booking & Scheduling": ["book", "booking", "appointment", "schedule", "sched", "reservation", "slot", "reschedule", "cancelled"],
-    "Results & Effectiveness": ["result", "results", "resulta", "effect", "epekto", "glow", "worked", "improvement", "effective", "gumanda", "pumuti"],
-    "Facilities & Ambiance": ["place", "lounge", "ambiance", "ambience", "parking", "aircon", "room", "chair", "comfortable", "komportable"],
-    "Safety & Health": ["allergic", "allergy", "rash", "pantal", "infection", "side effect", "side effects", "sakit", "pain", "masakit", "swelling", "namaga", "fever", "lagnat", "nahilo", "dizzy"],
-    "Payment & Refunds": ["refund", "payment", "gcash", "charged", "charge", "bayad", "receipt", "resibo", "card"],
-    "Location & Branches": ["location", "address", "branch", "branches", "timog", "mandaluyong", "map", "directions"],
-    "Online Experience": ["website", "site", "app", "link", "page", "online", "form"]
+    "Response Time": ["response", "reply", "replies", "sumasagot", "sumagot", "sagot", "respond", "responding", "seen", "message", "messages", "inquiry", "chat", "landline", "natatawagan"],
+    "Waiting Time & Delays": ["wait", "waited", "waiting", "naghintay", "hintay", "pila", "queue", "hours", "oras", "minutes", "late", "delay", "delayed", "tagal"],
+    "Tour Guides & Staff": ["staff", "tour guide", "guide", "guides", "driver", "travel agent", "agent", "coordinator", "trip leader", "booking officer", "mabait", "rude", "bastos", "friendly", "accommodating", "maasikaso", "magalang", "polite", "patient"],
+    "Tours & Itinerary": ["tour", "tours", "itinerary", "trip", "island hopping", "stops", "service", "serbisyo", "experience", "organized", "rushed", "biyahe"],
+    "Pricing & Promos": ["price", "presyo", "mahal", "expensive", "magkano", "promo", "seat sale", "discount", "sulit", "cheap", "mura", "overpriced", "package", "rate", "installment"],
+    "Hotels & Accommodation": ["hotel", "resort", "room", "accommodation", "check-in", "check in", "aircon", "breakfast", "beach", "views", "smelled", "mabaho"],
+    "Booking & Reservations": ["book", "booking", "reservation", "schedule", "sched", "slot", "slots", "reschedule", "cancelled", "cancel", "confirmation", "fully booked", "e-ticket", "ticket"],
+    "Flights & Transfers": ["flight", "flights", "airport", "transfer", "transfers", "pickup", "pick up", "sundo", "van", "bus", "boat", "bangka", "ferry", "meeting point"],
+    "Visa & Travel Documents": ["visa", "passport", "documents", "requirements", "embassy", "offload", "offloaded", "immigration", "travel insurance", "insurance"],
+    "Safety & Health": ["accident", "naaksidente", "aksidente", "injured", "nasugatan", "food poisoning", "nilalagnat", "lagnat", "fever", "nahilo", "dizzy", "seasick", "unsafe", "stranded", "naiwan", "lost passport", "nawala passport", "nawala po passport", "nawala ang passport", "doctor", "hospital", "ospital"],
+    "Payment & Refunds": ["refund", "payment", "gcash", "charged", "charge", "bayad", "receipt", "resibo", "card", "credit card"],
+    "Destinations": ["destination", "boracay", "el nido", "coron", "palawan", "bohol", "siargao", "cebu", "japan", "seoul", "korea", "hong kong", "taiwan", "vietnam", "bali", "island"],
+    "Online Experience": ["website", "site", "app", "link", "page", "online", "form", "payment page"]
   },
   "critical_terms": [
-    "allergic reaction", "infection", "namaga", "hospital", "ospital", "emergency", "nahimatay", "fainted", "bleeding", "dumugo",
-    "lawyer", "abogado", "demanda", "sue", "legal action", "police", "pulis", "scam", "fraud", "data leak", "privacy",
-    "harassment", "hinipuan", "can't breathe", "cant breathe", "hirap huminga", "lagnat", "fever", "side effect", "side effects",
-    "nahilo", "dizzy", "mali ang gamot", "wrong medicine", "expired", "swelling", "nag swelling", "namamaga", "rashes", "rash", "pantal", "masakit pa rin"
+    "accident", "naaksidente", "aksidente", "injured", "nasugatan", "hospital", "ospital", "emergency", "nahimatay", "fainted", "bleeding", "dumugo", "lawyer", "abogado", "demanda", "sue", "legal action", "police", "pulis", "scam", "fraud", "data leak", "privacy", "harassment", "hinipuan", "can't breathe", "cant breathe", "hirap huminga", "lagnat", "nilalagnat", "fever", "nahilo", "dizzy", "food poisoning", "stranded", "naiwan po kami", "naiwan kami", "lost passport", "nawala po passport", "nawala passport", "nawala ang passport", "unsafe", "missing", "nawawala"
   ],
   "sarcasm_praise": ["wow", "galing", "ang galing", "excellent", "great", "nice", "perfect", "thanks a lot", "salamat ha", "amazing", "best", "super", "congrats", "bravo", "fantastic", "galing talaga"],
   "sarcasm_negative_markers": ["waited", "naghintay", "pinaghintay", "hours", "oras", "minutes", "pa more", "seen lang", "walang sumasagot", "no response", "wala pa rin", "still waiting", "hanggang ngayon", "nawala", "lost", "late", "cancelled", "sira", "palpak", "charged twice"],

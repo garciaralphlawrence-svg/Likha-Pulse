@@ -22,7 +22,7 @@ export default function Priority() {
 
   return (
     <>
-      <PageHeader eyebrow="Needs attention" title="Reply to these first" description="Messages the AI thinks you should handle soon — like health or safety concerns, angry customers, or people still waiting for an answer." />
+      <PageHeader eyebrow="Needs attention" title="Reply to these first" description="Messages the AI thinks you should handle soon — like stranded travelers, safety concerns, angry customers, or people still waiting for an answer." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {TABS.map((t) => <button key={t.k} onClick={() => set("priority", t.k)} className={f.priority === t.k ? "btn-primary" : "btn-secondary"}>{t.l}</button>)}
         <label className="ml-auto flex items-center gap-2 text-sm text-ink-500"><input type="checkbox" className="accent-gold-500" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} />Hide messages marked done</label>

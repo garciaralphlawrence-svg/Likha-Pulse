@@ -7,10 +7,10 @@
   {"text": "Okay sana pero disappointing ang experience.", "label": "negative"},
   {"text": "Hindi maganda ang experience ko.", "label": "negative"},
   {"text": "Salamat po sa mabilis na reply, highly recommend!", "label": "positive", "intent": "appreciation"},
-  {"text": "Nagka-allergic reaction ako after ng drip, namaga braso ko.", "label": "negative", "priority": "critical", "primary_topic": "Safety & Health"},
-  {"text": "Is the drip safe for pregnant women?", "intent": "inquiry", "emotion": "concern"},
+  {"text": "Naiwan po kami ng bangka sa island hopping, stranded kami dito.", "label": "negative", "priority": "critical", "primary_topic": "Safety & Health"},
+  {"text": "Is the island hopping tour safe for pregnant women?", "intent": "inquiry", "emotion": "concern"},
   {"text": "Follow up lang po sa refund ko, wala pa rin hanggang ngayon.", "label": "negative", "intent": "follow_up_request", "priority": "high"},
-  {"text": "Sana may branch kayo sa Cavite.", "intent": "suggestion", "priority": "medium"},
-  {"text": "The staff was rude and unprofessional.", "label": "negative", "emotion": "anger", "primary_topic": "Staff Behavior"},
+  {"text": "Sana may tour package kayo sa Vietnam.", "intent": "suggestion", "priority": "medium"},
+  {"text": "The staff was rude and unprofessional.", "label": "negative", "emotion": "anger", "primary_topic": "Tour Guides & Staff"},
   {"text": "Hindi mabagal, mabilis nga eh.", "label": "positive"}
 ]
