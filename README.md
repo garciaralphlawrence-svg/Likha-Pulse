@@ -49,6 +49,19 @@ a lost request needs a reason (price, dates, another agency, no response, plans 
 **Overview for owners and agents:** requests by stage, booking rate, average quote, offers waiting for
 a decision, requests waiting 24h+, top destinations and lost reasons.
 
+**Owner only (role ADMIN):**
+- *Owner briefing* at the top of the Overview: one-line AI verdict plus the few things that matter
+  (bookings vs. the previous 30 days, leading destinations, what customers are unhappy about, waiting requests).
+- *Customer sentiment*: the free English/Tagalog/Taglish sentiment engine reads everything customers write
+  (trip requests, questions, change requests, after-trip reviews with 1–5 stars). Mood over time, by destination,
+  salesperson and stage; topics (slow replies, price, hotels, visa…) with example quotes; a "needs attention" list
+  linking to each request; CSV export.
+- *Team performance*: per salesperson, requests handled, first-reply time, offers sent, approval and booking rate,
+  revenue, average margin and their customers' mood.
+- *Revenue and margin*: booked revenue and margin by month and destination, pipeline value, request-to-booking funnel, lost reasons.
+- Filters on every owner page: 30 / 90 days, this year, all time, destination, salesperson.
+- Customers can rate a booked trip (1–5 stars and a comment) on their tracking page; it flows straight into sentiment.
+
 ## Sample rates (replace before real use)
 
 All prices come from `backend/app/quotes/catalog.json`: 12 destinations (London, Paris, Japan, Seoul,

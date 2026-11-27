@@ -82,7 +82,7 @@ def create_request(*, id: str, seq: int, now: str, customer: dict, raw_text: str
         "id": id, "ref": ref_for(int(now[:4]), seq), "created_at": now, "updated_at": now, "status": "ai_recommended", "is_sample": bool(is_sample),
         "customer": {"name": name[:120], "contact": contact[:160]}, "raw_text": (raw_text or "")[:2000], "input": rec["input"],
         "addons": [a for a in addons if a in known], "recommendation": rec, "assignee": None, "offer": None, "submitted_by": None, "approval": None,
-        "customer_question": None, "lost_reason": None, "events": [],
+        "customer_question": None, "lost_reason": None, "events": [], "feedback": None,
     }
     req["events"].append({"at": now, "by": req["customer"]["name"], "role": "CUSTOMER", "action": "submitted", "from": None, "to": "new", "note": "Request received."})
     req["events"].append({"at": now, "by": "PAPH AI", "role": "SYSTEM", "action": "ai_recommended", "from": "new", "to": "ai_recommended", "note": rec["verdict"]})
@@ -245,6 +245,18 @@ def apply(prev: dict, action: str, actor: dict, payload: dict, now: str, setting
         event_note = note or "Customer accepted the offer."
     elif action == "customer_changes":
         req["customer_question"] = None
+    elif action == "customer_feedback":
+        if req.get("feedback"):
+            fail("Thank you! You already rated this trip.")
+        rv = payload.get("rating")
+        try:
+            rating = js_round(float(rv)) if rv is not None and not isinstance(rv, bool) and str(rv).strip() != "" else None
+        except (TypeError, ValueError):
+            rating = None
+        if rating is None or not (1 <= rating <= 5):
+            fail("Please choose 1 to 5 stars.")
+        req["feedback"] = {"rating": rating, "text": note, "at": now}
+        event_note = f"{rating} of 5 stars.{' ' + note if note else ''}"
     elif action == "customer_question":
         req["customer_question"] = {"text": note, "at": now}
     elif action == "answer":

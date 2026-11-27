@@ -41,7 +41,7 @@ export function detail(r: TravelRequest, role: Role, settings: Settings, now: st
 const PUBLIC_EVENTS: Record<string, string> = {
   submitted: "Request received", ai_recommended: "AI estimate ready", start_offer: "A travel consultant is preparing your offer",
   approve: "Your offer is ready", send: "Quotation sent to you", customer_accept: "You accepted the offer", customer_changes: "You asked for changes",
-  customer_question: "You asked a question", answer: "We answered your question", mark_booked: "Booked. See you on your trip!", mark_lost: "Request closed", decline: "Request closed",
+  customer_question: "You asked a question", customer_feedback: "You rated your trip", answer: "We answered your question", mark_booked: "Booked. See you on your trip!", mark_lost: "Request closed", decline: "Request closed",
 };
 
 /** Contact check for tracking: same email, or the same last 7 digits of a mobile number. */
@@ -57,10 +57,10 @@ export function publicView(r: TravelRequest, settings: Settings, now: string): P
   const st = STATUSES[r.status];
   const quoted = QUOTED.includes(r.status) && !!r.offer && !!r.approval;
   const expired = isExpired(r, now);
-  const can = allowed(r, "CUSTOMER").filter((a: ActionCode) => !(expired && (a === "customer_accept" || a === "customer_changes")));
+  const can = allowed(r, "CUSTOMER").filter((a: ActionCode) => !(expired && (a === "customer_accept" || a === "customer_changes")) && !(a === "customer_feedback" && r.feedback));
   return {
     ref: r.ref, created_at: r.created_at, status: r.status, customer_status: expired ? "Offer expired: rates must be rechecked" : st.customer, step: st.step, customer_name: r.customer.name,
-    input: r.input, recommendation: r.recommendation, addons: r.addons, expired, question: r.customer_question,
+    input: r.input, recommendation: r.recommendation, addons: r.addons, expired, question: r.customer_question, feedback: r.feedback ?? null,
     offer: quoted ? { option: r.offer!.option, lines: r.offer!.lines.map((l) => ({ label: l.label, detail: l.detail, price: l.price })), discount: r.offer!.discount, total: r.offer!.totals.price, per_person: r.offer!.totals.per_person, notes: r.offer!.notes } : null,
     terms: quoted ? quotationTerms(r, settings, now) : null,
     timeline: r.events.filter((e) => PUBLIC_EVENTS[e.action]).map((e) => ({ at: e.at, label: PUBLIC_EVENTS[e.action] + (e.action === "answer" || e.action === "customer_question" ? `: ${e.note}` : "") })),

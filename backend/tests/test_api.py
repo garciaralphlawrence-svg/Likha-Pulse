@@ -148,7 +148,7 @@ def test_lost_needs_reason_and_dashboard(client, staff):
     dash = client.get("/api/dashboard", headers=staff["AGENT"]).json()
     rows = client.get("/api/requests?view=all", headers=staff["AGENT"]).json()
     assert dash["total"] == len(rows) and sum(s["count"] for s in dash["by_status"]) == dash["total"]
-    assert any(x["reason"] == "price" for x in dash["lost_reasons"]) and dash["top_destinations"][0]["code"] == "london"
+    assert any(x["reason"] == "price" for x in dash["lost_reasons"]) and any(x["code"] == "london" for x in dash["top_destinations"])
     assert dash["sample_count"] == sum(1 for r in rows if r["is_sample"])
 
 
@@ -162,8 +162,8 @@ def test_settings_validation(client, admin_headers):
 
 def test_staff_list_and_assign(client, staff):
     people = client.get("/api/staff", headers=staff["SALES"]).json()
-    sales = next(p for p in people if p["role"] == "SALES")
-    agent = next(p for p in people if p["role"] == "AGENT")
+    sales = next(p for p in people if p["name"] == "Test Sales")
+    agent = next(p for p in people if p["name"] == "Test Agent")
     ref = new_request(client)
     rid = find_id(client, staff["SALES"], ref)
     assert act(client, staff["SALES"], rid, "assign", assignee={"id": agent["id"]}).status_code == 400  # sales only takes for themselves
@@ -179,3 +179,43 @@ def test_unknown_destination_goes_to_manual(client, staff):
     d = act(client, staff["SALES"], rid, "start_offer").json()
     assert d["offer"]["lines"] == []
     assert act(client, staff["SALES"], rid, "submit").status_code == 400
+
+
+def test_owner_dashboard_is_owner_only(client, staff):
+    for role in ("SALES", "AGENT"):
+        assert client.get("/api/owner", headers=staff[role]).status_code == 403
+        assert client.get("/api/owner/voices.csv", headers=staff[role]).status_code == 403
+    rep = client.get("/api/owner?range=all", headers=staff["ADMIN"]).json()
+    assert {"briefing", "sentiment", "team", "revenue", "voices", "options"} <= set(rep)
+    assert rep["briefing"]["verdict"] and rep["sentiment"]["total"] > 50 and rep["revenue"]["bookings"] > 5
+    assert any(t["name"] == "Mia (sample salesperson)" for t in rep["team"])
+    assert client.get("/api/owner?range=forever", headers=staff["ADMIN"]).status_code == 422
+    csv = client.get("/api/owner/voices.csv?range=30", headers=staff["ADMIN"])
+    assert csv.status_code == 200 and csv.headers["content-type"].startswith("text/csv") and "Reference" in csv.text.splitlines()[0]
+
+
+def test_sample_staff_cannot_sign_in(client):
+    assert client.post("/api/auth/login", json={"email": "sample.sales1@example.com", "password": "Anything123"}).status_code == 401
+
+
+def test_customer_feedback_after_booking(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    act(client, staff["SALES"], rid, "start_offer")
+    act(client, staff["SALES"], rid, "submit")
+    act(client, staff["AGENT"], rid, "approve")
+    url = f"/api/public/requests/{ref}/actions"
+    assert client.post(url, json={"contact": CONTACT, "action": "customer_feedback", "rating": 5}).status_code == 400  # not booked yet
+    client.post(url, json={"contact": CONTACT, "action": "customer_accept"})
+    act(client, staff["SALES"], rid, "mark_booked")
+    v = client.get(f"/api/public/requests/{ref}", params={"contact": CONTACT}).json()
+    assert "customer_feedback" in v["can"] and v["feedback"] is None
+    assert client.post(url, json={"contact": CONTACT, "action": "customer_feedback", "rating": 9}).status_code == 400
+    note = "Super bait ng tour guide, sulit ang London trip!"
+    v = client.post(url, json={"contact": CONTACT, "action": "customer_feedback", "rating": 5, "note": note}).json()
+    assert v["feedback"]["rating"] == 5 and "customer_feedback" not in v["can"] and v["timeline"][-1]["label"] == "You rated your trip"
+    r = client.post(url, json={"contact": CONTACT, "action": "customer_feedback", "rating": 1})
+    assert r.status_code == 400 and "already rated" in r.json()["detail"]
+    rep = client.get("/api/owner?range=30", headers=staff["ADMIN"]).json()
+    mine = [x for x in rep["voices"] if x["ref"] == ref and x["kind"] == "feedback"]
+    assert len(mine) == 1 and mine[0]["rating"] == 5 and mine[0]["mood"] == "positive" and mine[0]["text"] == note

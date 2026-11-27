@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Check, HelpCircle, MessageSquare, PencilLine, Search, ThumbsUp } from "lucide-react";
+import { Check, HelpCircle, MessageSquare, PencilLine, Search, Star, ThumbsUp } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { IS_DEMO, api } from "../api";
@@ -9,6 +9,7 @@ import RecommendationView from "../components/Recommendation";
 import { ErrorBox, Modal, Spinner } from "../components/ui";
 import { fmtDate } from "../lib/format";
 import { ActionCode } from "../quote/workflow";
+import { DEMO_TRACK_HINTS } from "../demo/demoApi";
 
 const MINE = "paph.my.requests";
 export function rememberRequest(ref: string, contact: string) {
@@ -24,6 +25,7 @@ function Lookup() {
   const year = new Date(Date.now() - 40 * 3600000).getFullYear();
   const go = (e: FormEvent) => { e.preventDefault(); nav(`/track/${ref.trim().toUpperCase()}?c=${encodeURIComponent(contact.trim())}`); };
   const recent = mine();
+  const refOf = (seq: number) => `PAPH-${year}-${String(seq).padStart(4, "0")}`;
   return (
     <div className="mx-auto max-w-[560px] px-4 py-12 sm:px-6 sm:py-16">
       <p className="eyebrow">Track my request</p>
@@ -42,8 +44,8 @@ function Lookup() {
       {IS_DEMO && (
         <div className="mt-6 rounded-2xl border border-gold-300/60 bg-gold-50 p-4 text-sm text-ink-700">
           <p className="font-medium text-gold-700">Try a sample request</p>
-          <p className="mt-1 text-xs">Reference <b>PAPH-{year}-0007</b> with mobile <b>0920 555 0106</b> (an offer that is ready), or <b>PAPH-{year}-0012</b> with <b>0926 555 0112</b> (an expired offer).</p>
-          <Link className="mt-2 inline-block text-xs font-semibold underline" to={`/track/PAPH-${year}-0007?c=${encodeURIComponent("0920 555 0106")}`}>Open the sample</Link>
+          <p className="mt-1 text-xs">Reference <b>{refOf(DEMO_TRACK_HINTS.ready.seq)}</b> with mobile <b>{DEMO_TRACK_HINTS.ready.contact}</b> (an offer that is ready), or <b>{refOf(DEMO_TRACK_HINTS.expired.seq)}</b> with <b>{DEMO_TRACK_HINTS.expired.contact}</b> (an expired offer).</p>
+          <Link className="mt-2 inline-block text-xs font-semibold underline" to={`/track/${refOf(DEMO_TRACK_HINTS.ready.seq)}?c=${encodeURIComponent(DEMO_TRACK_HINTS.ready.contact)}`}>Open the sample</Link>
         </div>
       )}
     </div>
@@ -59,6 +61,7 @@ export default function Track() {
   const [ask, setAsk] = useState<null | ActionCode>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stars, setStars] = useState(0);
   useEffect(() => {
     if (!ref) return;
     setV(null); setErr(null);
@@ -68,9 +71,9 @@ export default function Track() {
   if (err) return <div className="mx-auto max-w-[560px] px-4 py-16"><ErrorBox error={err} /><Link className="btn-secondary" to="/track">Try again</Link></div>;
   if (!v) return <div className="mx-auto max-w-[560px] px-4 py-16"><Spinner /></div>;
 
-  const act = async (action: ActionCode, n = "") => {
+  const act = async (action: ActionCode, n = "", rating?: number) => {
     setBusy(true); setErr(null);
-    try { setV(await api.customerAction(v.ref, contact, action, n)); setAsk(null); setNote(""); } catch (x) { setErr(x); } finally { setBusy(false); }
+    try { setV(await api.customerAction(v.ref, contact, action, n, rating)); setAsk(null); setNote(""); } catch (x) { setErr(x); } finally { setBusy(false); }
   };
   const closed = v.step < 0;
   const step = v.status === "booked" ? 4 : v.step;
@@ -97,6 +100,23 @@ export default function Track() {
 
       <ErrorBox error={err} />
       {v.question && <div className="mt-6 flex gap-3 rounded-2xl border border-ivory-300 bg-white p-4 text-sm"><HelpCircle className="h-5 w-5 shrink-0 text-gold-600" /><span><b>Your question:</b> {v.question.text}<span className="block text-xs text-ink-400">Your travel consultant will answer soon.</span></span></div>}
+
+      {v.can.includes("customer_feedback") && (
+        <section className="card mt-6 p-5 sm:p-6" style={{ animation: "fadeUp .6s both" }}>
+          <p className="eyebrow">Welcome back</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">How was your trip?</h2>
+          <div className="mt-3 flex gap-1" role="radiogroup" aria-label="Your rating">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} role="radio" aria-checked={stars === n} aria-label={`${n} star${n > 1 ? "s" : ""}`} onClick={() => setStars(n)} className="rounded-lg p-1 transition hover:scale-110">
+                <Star className={clsx("h-8 w-8", n <= stars ? "fill-gold-500 text-gold-500" : "text-ivory-300")} />
+              </button>
+            ))}
+          </div>
+          <textarea className="input mt-3 min-h-[90px]" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tell us what you loved, or what we can do better (optional)" aria-label="Your comment" />
+          <div className="mt-3 flex justify-end"><button className="btn-gold" disabled={!stars || busy} onClick={() => act("customer_feedback", note, stars)}>Send my rating</button></div>
+        </section>
+      )}
+      {v.feedback && <div className="mt-6 flex gap-3 rounded-2xl border border-gold-300/60 bg-gold-50 p-4 text-sm"><Star className="h-5 w-5 shrink-0 fill-gold-500 text-gold-500" /><span>Salamat! You rated this trip {v.feedback.rating} of 5.{v.feedback.text && <span className="block text-ink-500">&ldquo;{v.feedback.text}&rdquo;</span>}</span></div>}
 
       {v.offer && v.terms ? (
         <div className="mt-8 space-y-4">

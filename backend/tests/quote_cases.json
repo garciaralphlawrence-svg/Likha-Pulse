@@ -1768,5 +1768,283 @@
         ]
       ]
     }
+  },
+  "owner_golden": {
+    "refs": [
+      "PAPH-2026-0001",
+      "PAPH-2026-0064"
+    ],
+    "statuses": "booked,declined,booked,declined,booked,lost,declined,booked,lost,lost,booked,booked,lost,booked,booked,declined,booked,booked,lost,lost,booked,booked,lost,lost,lost,booked,declined,declined,lost,booked,lost,booked,lost,booked,booked,booked,booked,declined,declined,booked,lost,lost,lost,lost,booked,booked,booked,booked,lost,booked,booked,booked,lost,booked,booked,lost,booked,booked,booked,booked,declined,booked,lost,lost",
+    "last_event": [
+      [
+        "submitted",
+        "2026-11-10T13:18:45.000Z"
+      ],
+      [
+        "ai_recommended",
+        "2026-11-10T13:18:45.000Z"
+      ],
+      [
+        "start_offer",
+        "2026-11-10T21:44:47.492Z"
+      ],
+      [
+        "customer_question",
+        "2026-11-10T23:44:47.492Z"
+      ],
+      [
+        "answer",
+        "2026-11-11T08:44:47.492Z"
+      ],
+      [
+        "submit",
+        "2026-11-11T09:44:47.492Z"
+      ],
+      [
+        "approve",
+        "2026-11-11T13:44:47.492Z"
+      ],
+      [
+        "send",
+        "2026-11-11T14:44:47.492Z"
+      ],
+      [
+        "customer_changes",
+        "2026-11-12T08:44:47.492Z"
+      ],
+      [
+        "mark_lost",
+        "2026-11-14T08:44:47.492Z"
+      ]
+    ],
+    "feedback": "554455455433544255534",
+    "briefing": {
+      "verdict": "Customers are mostly happy: 17 happy messages and 6 unhappy, mostly about slow replies.",
+      "bullets": [
+        "Bookings up 66% in the last 30 days: ₱1,667,900 from 9 trips.",
+        "Singapore and Japan (Tokyo and Osaka) lead customer requests this quarter.",
+        "Customers are unhappy about slow replies on 5 requests."
+      ]
+    },
+    "sentiment": [
+      117,
+      17,
+      94,
+      6,
+      8,
+      {
+        "avg": 4.2,
+        "count": 21,
+        "stars": [
+          0,
+          1,
+          3,
+          7,
+          10
+        ]
+      }
+    ],
+    "trend": [
+      [
+        "2026-05",
+        1,
+        0
+      ],
+      [
+        "2026-06",
+        16,
+        10
+      ],
+      [
+        "2026-07",
+        15,
+        4
+      ],
+      [
+        "2026-08",
+        17,
+        13
+      ],
+      [
+        "2026-09",
+        19,
+        1
+      ],
+      [
+        "2026-10",
+        29,
+        7
+      ],
+      [
+        "2026-11",
+        20,
+        12
+      ]
+    ],
+    "themes": [
+      [
+        "Response Time",
+        5,
+        5,
+        5
+      ],
+      [
+        "Pricing & Promos",
+        11,
+        1,
+        1
+      ],
+      [
+        "Flights & Transfers",
+        10,
+        0,
+        0
+      ],
+      [
+        "Tours & Itinerary",
+        10,
+        0,
+        0
+      ],
+      [
+        "Hotels & Accommodation",
+        7,
+        0,
+        0
+      ],
+      [
+        "Tour Guides & Staff",
+        6,
+        0,
+        0
+      ],
+      [
+        "Visa & Travel Documents",
+        3,
+        0,
+        0
+      ]
+    ],
+    "team": [
+      {
+        "id": "s1",
+        "name": "Demo Salesperson",
+        "handled": 42,
+        "avg_response_hours": 3.4,
+        "offers_sent": 42,
+        "approval_rate": 78.6,
+        "booking_rate": 57.6,
+        "revenue": 2847700,
+        "avg_margin_pct": 8.2,
+        "sentiment_score": 6,
+        "voices": 74
+      },
+      {
+        "id": "s2",
+        "name": "Second Salesperson (sample)",
+        "handled": 22,
+        "avg_response_hours": 16.6,
+        "offers_sent": 22,
+        "approval_rate": 100,
+        "booking_rate": 68.2,
+        "revenue": 2655600,
+        "avg_margin_pct": 8,
+        "sentiment_score": 11,
+        "voices": 43
+      }
+    ],
+    "revenue": [
+      5503300,
+      451200,
+      8.2,
+      0,
+      161900,
+      61.8
+    ],
+    "by_month": [
+      {
+        "period": "2026-06",
+        "label": "Jun 2026",
+        "revenue": 633600,
+        "margin": 57600,
+        "bookings": 4
+      },
+      {
+        "period": "2026-07",
+        "label": "Jul 2026",
+        "revenue": 877400,
+        "margin": 78700,
+        "bookings": 5
+      },
+      {
+        "period": "2026-08",
+        "label": "Aug 2026",
+        "revenue": 459800,
+        "margin": 38100,
+        "bookings": 4
+      },
+      {
+        "period": "2026-09",
+        "label": "Sep 2026",
+        "revenue": 862400,
+        "margin": 72000,
+        "bookings": 6
+      },
+      {
+        "period": "2026-10",
+        "label": "Oct 2026",
+        "revenue": 1287100,
+        "margin": 97200,
+        "bookings": 8
+      },
+      {
+        "period": "2026-11",
+        "label": "Nov 2026",
+        "revenue": 1383000,
+        "margin": 107600,
+        "bookings": 7
+      }
+    ],
+    "funnel": [
+      64,
+      64,
+      64,
+      55,
+      34,
+      34
+    ],
+    "lost": [
+      {
+        "reason": "price",
+        "label": "Price too high",
+        "count": 6
+      },
+      {
+        "reason": "dates",
+        "label": "Dates did not work",
+        "count": 5
+      },
+      {
+        "reason": "no_response",
+        "label": "No response from customer",
+        "count": 5
+      },
+      {
+        "reason": "other_agency",
+        "label": "Chose another agency",
+        "count": 4
+      },
+      {
+        "reason": "plans_changed",
+        "label": "Trip cancelled or plans changed",
+        "count": 1
+      }
+    ],
+    "filtered": [
+      3,
+      7,
+      452900,
+      1
+    ]
   }
 }

@@ -26,6 +26,7 @@
     "answer": { "label": "Mark question answered", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"], "note": true },
     "assign": { "label": "Assign", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"] },
     "mark_booked": { "label": "Mark as booked (deposit received)", "from": ["accepted"], "to": "booked", "roles": ["SALES", "AGENT", "ADMIN"] },
+    "customer_feedback": { "label": "Rate your trip", "from": ["booked"], "to": null, "roles": ["CUSTOMER"] },
     "mark_lost": { "label": "Mark as lost", "from": ["new", "ai_recommended", "offer_drafted", "changes_requested", "approved", "sent", "accepted"], "to": "lost", "roles": ["SALES", "AGENT", "ADMIN"], "reason": true }
   },
   "lost_reasons": {

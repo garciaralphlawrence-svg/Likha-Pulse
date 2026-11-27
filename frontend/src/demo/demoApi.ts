@@ -3,12 +3,15 @@
 import type { Api, AuditRow, Me, StaffMember, UserRow } from "../api/types";
 import { parseRequest } from "../quote/engine";
 import { contactMatches, dashboard, detail, list, publicView } from "../quote/views";
+import { generateHistory } from "../quote/history";
+import { ownerReport } from "../quote/owner";
+import HISTORY from "../quote/sample_history.json";
 import { ACTIONS, ActionCode, ActionPayload, Actor, DEFAULT_SETTINGS, Role, Settings, TravelRequest, apply, createRequest } from "../quote/workflow";
 
-const KEY = "paph.demo.v1";
+const KEY = "paph.demo.v2"; // v2: 6 months of sample history + owner dashboards
 const SESSION = "paph.demo.session";
 const PERMS: Record<string, string[]> = {
-  ADMIN: ["dashboard.view", "requests.view", "requests.sell", "requests.approve", "catalog.view", "users.manage", "settings.manage", "audit.view"],
+  ADMIN: ["owner.view", "dashboard.view", "requests.view", "requests.sell", "requests.approve", "catalog.view", "users.manage", "settings.manage", "audit.view"],
   AGENT: ["dashboard.view", "requests.view", "requests.approve", "catalog.view", "audit.view"],
   SALES: ["requests.view", "requests.sell", "catalog.view"],
 };
@@ -53,6 +56,12 @@ function log(s: Store, actor: string, action: string, entity: string, entity_id:
 // ---------- sample requests, walked through the real workflow ----------
 function seed(s: Store) {
   const [owner, sales, agent, sales2] = s.users.map(actorOf);
+  // ~6 months of closed sample requests first (oldest reference numbers), then the live sample queue
+  for (const r of generateHistory(now(), { sales: [sales, sales2], agent }, s.seq, s.settings)) {
+    s.requests.push(r);
+    for (const e of r.events) { const u = s.users.find((x) => x.full_name === e.by); if (u) log(s, u.email, `request_${e.action}`, "request", r.ref, {}, e.at); }
+  }
+  s.seq += HISTORY.count;
   const H = 3600000, t = (hoursAgo: number) => new Date(Date.now() - hoursAgo * H).toISOString();
   const make = (hoursAgo: number, name: string, contact: string, text: string, extra: Record<string, unknown> = {}, addons: string[] = []) => {
     const parsed = { ...parseRequest(text, t(hoursAgo)), ...extra };
@@ -170,14 +179,15 @@ export const demoApi: Api = {
     return wait({ ref: r.ref, contact: r.customer.contact });
   },
   async track(ref, contact) { const s = await db(); return wait(publicView(find(s, ref, contact), s.settings, now())); },
-  async customerAction(ref, contact, action, note) {
+  async customerAction(ref, contact, action, note, rating) {
     const s = await db(); const r = find(s, ref, contact);
     if (!ACTIONS[action]?.roles.includes("CUSTOMER")) throw new Error("Not allowed.");
-    const next = apply(r, action, { id: "customer", name: r.customer.name, role: "CUSTOMER" }, { note }, now(), s.settings);
+    const next = apply(r, action, { id: "customer", name: r.customer.name, role: "CUSTOMER" }, { note, rating }, now(), s.settings);
     s.requests[s.requests.indexOf(r)] = next; log(s, "customer", `request_${action}`, "request", r.ref); save();
     return publicView(next, s.settings, now());
   },
 
+  async owner(f) { need("owner.view"); return wait(ownerReport((await db()).requests, f, now())); },
   async dashboard() { need("dashboard.view"); return wait(dashboard((await db()).requests, now())); },
   async requests(view) { need("requests.view"); return wait(list((await db()).requests, view, now())); },
   async request(id) {
@@ -224,4 +234,4 @@ export const demoApi: Api = {
 
 export function resetDemo() { try { localStorage.removeItem(KEY); sessionStorage.removeItem(SESSION); } catch { /* ignore */ } store = null; me = null; }
 /** Sample references a visitor can try on the tracking page. */
-export const DEMO_TRACK_HINT = { ref: "PAPH-YYYY-0007", contact: "0920 555 0106" };
+export const DEMO_TRACK_HINTS = { ready: { seq: HISTORY.count + 7, contact: "0920 555 0106" }, expired: { seq: HISTORY.count + 13, contact: "0926 555 0112" } };

@@ -20,6 +20,8 @@ export interface TravelRequest {
   recommendation: Recommendation; assignee: { id: string; name: string } | null; offer: Offer | null;
   submitted_by: { id: string; name: string } | null; approval: { by: string; by_id: string; at: string; note: string; version: number; valid_until: string } | null;
   customer_question: { text: string; at: string } | null; lost_reason: string | null; events: RequestEvent[];
+  /** Post-trip feedback from the customer (1 to 5 stars and a comment). */
+  feedback?: { rating: number; text: string; at: string } | null;
 }
 export interface Settings { service_fee_pct: number; min_margin_pct: number; validity_days: number; deposit_pct: number; balance_days_before: number }
 
@@ -51,7 +53,7 @@ export function createRequest(p: { id: string; seq: number; now: string; custome
     id: p.id, ref: refFor(parseInt(p.now.slice(0, 4), 10), p.seq), created_at: p.now, updated_at: p.now, status: "ai_recommended", is_sample: !!p.is_sample,
     customer: { name: name.slice(0, 120), contact: contact.slice(0, 160) }, raw_text: p.raw_text.slice(0, 2000), input: rec.input,
     addons: p.addons.filter((a) => known.has(a)), recommendation: rec, assignee: null, offer: null, submitted_by: null, approval: null,
-    customer_question: null, lost_reason: null, events: [],
+    customer_question: null, lost_reason: null, events: [], feedback: null,
   };
   req.events.push({ at: p.now, by: req.customer.name, role: "CUSTOMER", action: "submitted", from: null, to: "new", note: "Request received." });
   req.events.push({ at: p.now, by: "PAPH AI", role: "SYSTEM", action: "ai_recommended", from: "new", to: "ai_recommended", note: rec.verdict });
@@ -110,7 +112,7 @@ export function allowed(req: TravelRequest, role: Role): ActionCode[] {
   return (Object.keys(ACTIONS) as ActionCode[]).filter((a) => ACTIONS[a].roles.includes(role) && ACTIONS[a].from.includes(req.status));
 }
 
-export interface ActionPayload { note?: string; option?: string | null; lines?: OfferLine[]; discount?: number; notes?: string; assignee?: { id: string; name: string }; reason?: string }
+export interface ActionPayload { note?: string; option?: string | null; lines?: OfferLine[]; discount?: number; notes?: string; assignee?: { id: string; name: string }; reason?: string; rating?: number }
 
 /** Applies one step. Throws FlowError with a plain message when the step is not allowed. Returns a new request. */
 export function apply(prev: TravelRequest, action: ActionCode, actor: Actor, payload: ActionPayload, now: string, settings: Settings = DEFAULT_SETTINGS): TravelRequest {
@@ -189,6 +191,14 @@ export function apply(prev: TravelRequest, action: ActionCode, actor: Actor, pay
       if (!req.customer_question) fail("There is no open question from the customer.");
       req.customer_question = null;
       break;
+    case "customer_feedback": {
+      if (req.feedback) fail("Thank you! You already rated this trip.");
+      const rating = Math.round(Number(payload.rating));
+      if (!(rating >= 1 && rating <= 5)) fail("Please choose 1 to 5 stars.");
+      req.feedback = { rating, text: note, at: now };
+      eventNote = `${rating} of 5 stars.${note ? " " + note : ""}`;
+      break;
+    }
     case "assign": {
       const a = payload.assignee ?? fail("Choose a salesperson.");
       if (actor.role === "SALES" && a.id !== actor.id) fail("Salespeople can only take a request for themselves.");

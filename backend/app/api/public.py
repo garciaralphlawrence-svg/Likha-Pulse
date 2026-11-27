@@ -91,6 +91,7 @@ class CustomerActionIn(BaseModel):
     contact: str = Field(max_length=160)
     action: str
     note: str = Field("", max_length=1000)
+    rating: float | None = None
 
 
 @router.post("/parse")
@@ -140,7 +141,7 @@ def customer_action(ref: str, body: CustomerActionIn, request: Request, _: None 
     settings, now = quote_settings(db), W.now_iso()
     actor = {"id": "customer", "name": row.data["customer"]["name"], "role": "CUSTOMER"}
     try:
-        data = W.apply(row.data, body.action, actor, {"note": body.note}, now, settings)
+        data = W.apply(row.data, body.action, actor, {"note": body.note, "rating": body.rating}, now, settings)
     except W.FlowError as e:
         db.rollback()
         raise HTTPException(400, str(e))

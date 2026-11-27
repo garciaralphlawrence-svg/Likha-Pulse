@@ -10,6 +10,12 @@
 The first Owner account is created from `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` in `backend/.env` on first start.
 Add the rest in **Team**. Passwords need at least 10 characters with letters and numbers.
 
+## Owner dashboards (Owner only)
+The Owner sees how customers feel and how the business is doing: a one-line briefing first, then customer mood over time and by
+destination, salesperson and stage, the themes customers complain about (with examples), team performance and revenue with margin.
+Filter by period (30 days, 90 days, this year, all), destination or salesperson, and download every customer message as a CSV for Excel.
+Agents and salespeople cannot open these pages.
+
 ## Settings (Owner only)
 - **Service fee** (default 10%): PAPH's fee added to every AI estimate and new offer.
 - **Minimum margin** (default 8%): below this the agent must write a reason to approve. Below cost can never be approved.
@@ -24,8 +30,10 @@ After editing, run `npm run sync-catalog` in `frontend/`, then `node scripts/quo
 and run both test suites.
 
 ## Sample requests
-With `SEED_SAMPLE_DATA=true`, an empty database gets 10 requests named "Sample customer: ..." spread across the whole flow.
-They are marked as samples everywhere. Set it to `false` for a clean start.
+With `SEED_SAMPLE_DATA=true`, an empty database gets about 6 months of closed sample requests (booked, lost, declined, some with
+after-trip reviews) plus 10 live requests named "Sample customer: ..." spread across the whole flow, handled by three sample staff
+(two salespeople and an agent, with random passwords so nobody can sign in as them). Everything is marked as sample.
+Set it to `false` for a clean start.
 
 ## Good habits
 - Work the queue oldest first; requests waiting more than 24 hours are highlighted.

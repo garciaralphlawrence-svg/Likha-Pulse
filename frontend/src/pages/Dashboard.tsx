@@ -1,10 +1,33 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Card, Empty, ErrorBox, PageHeader, Spinner, Stat } from "../components/ui";
 import { peso } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { RequestRow } from "./Requests";
+import { useAuth } from "../lib/auth";
+
+/** Owner only: the AI's one-line verdict and the few things that matter, over the last 90 days. */
+function OwnerBriefing() {
+  const { data: r } = useAsync(() => api.owner({ range: "90", destination: "", salesperson: "" }), []);
+  if (!r) return <div className="mb-6 h-48 animate-pulse rounded-3xl bg-ink-950/90" />;
+  return (
+    <section className="relative mb-6 overflow-hidden rounded-3xl bg-ink-950 p-6 text-ivory-50 sm:p-8" style={{ animation: "fadeUp .7s cubic-bezier(.2,.7,.2,1) both" }}>
+      <div className="glow-orb pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-gold-500/20 blur-3xl" />
+      <p className="relative flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-gold-300"><Sparkles className="h-3.5 w-3.5" />Owner briefing · last 90 days</p>
+      <p className="relative mt-3 max-w-3xl font-display text-2xl font-semibold leading-snug sm:text-[2rem]">{r.briefing.verdict}</p>
+      <ul className="relative mt-5 grid gap-2.5 text-[15px] text-ivory-200/85 md:grid-cols-2">
+        {r.briefing.bullets.map((b) => <li key={b} className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-300" />{b}</li>)}
+      </ul>
+      <div className="relative mt-6 flex flex-wrap gap-2 text-sm">
+        <Link className="rounded-full border border-gold-300/40 px-3.5 py-1.5 text-gold-300 hover:bg-gold-500/10" to="/staff/sentiment">Customer sentiment</Link>
+        <Link className="rounded-full border border-gold-300/40 px-3.5 py-1.5 text-gold-300 hover:bg-gold-500/10" to="/staff/performance">Team performance</Link>
+        <Link className="rounded-full border border-gold-300/40 px-3.5 py-1.5 text-gold-300 hover:bg-gold-500/10" to="/staff/revenue">Revenue and margin</Link>
+      </div>
+      {r.sample_count > 0 && <p className="relative mt-4 text-xs text-ivory-200/50">Based on sample data for this preview.</p>}
+    </section>
+  );
+}
 
 function Bars({ items, max }: { items: { label: string; count: number }[]; max: number }) {
   return (
@@ -20,6 +43,7 @@ function Bars({ items, max }: { items: { label: string; count: number }[]; max: 
 }
 
 export default function Dashboard() {
+  const { can } = useAuth();
   const { data: d, loading, error } = useAsync(() => api.dashboard(), []);
   if (loading) return <Spinner />;
   if (error || !d) return <ErrorBox error={error} />;
@@ -30,7 +54,8 @@ export default function Dashboard() {
   ].join(", and ") + ".";
   return (
     <>
-      <PageHeader eyebrow="Overview" title="Your briefing" description={<>{briefing}{d.sample_count > 0 && <span className="text-gold-700"> Showing {d.sample_count} sample requests.</span>}</>} />
+      {can("owner.view") && <OwnerBriefing />}
+      <PageHeader eyebrow="Overview" title={can("owner.view") ? "Today" : "Your briefing"} description={<>{briefing}{d.sample_count > 0 && <span className="text-gold-700"> Showing {d.sample_count} sample requests.</span>}</>} />
       <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Open requests" value={d.open} hint={`${d.total} in total`} />
         <Stat label="Waiting 24h+" value={d.waiting_long} tone={d.waiting_long ? "red" : undefined} hint="Need a reply first" />

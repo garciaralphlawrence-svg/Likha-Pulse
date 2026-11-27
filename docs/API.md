@@ -10,7 +10,7 @@ Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login`
 | POST | `/public/estimate` | `{text?, input?}` (input wins) | AI recommendation: 3 priced options, verdict, budget check with nearest fits, visa notes, add-ons |
 | POST | `/public/requests` | `{customer:{name, contact}, raw_text, input, addons[]}` | `201 {ref, contact}` |
 | GET | `/public/requests/{ref}?contact=` | contact = same mobile (last 7 digits) or email | Customer view (status, timeline, AI estimate, approved offer prices only, quotation terms) or 404 |
-| POST | `/public/requests/{ref}/actions` | `{contact, action, note}` with action `customer_accept`, `customer_changes`, `customer_question` | Customer view |
+| POST | `/public/requests/{ref}/actions` | `{contact, action, note, rating?}` with action `customer_accept`, `customer_changes`, `customer_question`, or `customer_feedback` (after booking, `rating` 1 to 5, once) | Customer view |
 
 ## Staff
 | Method | Path | Permission | Notes |
@@ -24,6 +24,8 @@ Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login`
 | GET | `/staff` | requests.view | active staff for assigning |
 | GET | `/dashboard` | dashboard.view | totals by status, conversion, average quote, top destinations, lost reasons, offers awaiting decision |
 | GET | `/catalog` | catalog.view | the sample rates |
+| GET | `/owner?range=30\|90\|year\|all&destination=&salesperson=` | owner.view (Owner only) | briefing, customer sentiment (trend, by destination, salesperson and stage, themes, needs attention, star ratings), team performance, revenue and margin, every customer message |
+| GET | `/owner/voices.csv` (same filters) | owner.view | every customer message with its mood, score and theme, for Excel |
 | GET / PUT | `/settings` | requests.view / settings.manage | `{service_fee_pct, min_margin_pct, validity_days, deposit_pct, balance_days_before}` |
 | GET/POST/PATCH | `/users`, `/users/{id}`, GET `/roles` | users.manage | roles ADMIN, AGENT, SALES |
 | GET | `/audit?page=` | audit.view | 50 per page, newest first |

@@ -1,0 +1,69 @@
+{
+  "notice": "SAMPLE history for the preview: made-up customers and messages, priced from the sample rates. Not real PAPH data.",
+  "count": 64,
+  "days": 180,
+  "seed": 2026,
+  "customers": [
+    "Sample: Andrea V.", "Sample: Bong and Lyn", "Sample: Cruz barkada", "Sample: Dianne P.", "Sample: Enzo M.", "Sample: Fe and Tony",
+    "Sample: Gabby L.", "Sample: Hazel R.", "Sample: Ivan S.", "Sample: Joanna and Mark", "Sample: Kat D.", "Sample: Lim family",
+    "Sample: Marco T.", "Sample: Nina A.", "Sample: Ocampo family", "Sample: Patty G.", "Sample: Quino couple", "Sample: Rhea B.",
+    "Sample: Santos family", "Sample: Tricia N.", "Sample: Uy siblings", "Sample: Vince C.", "Sample: Wena and Jojo", "Sample: Yap family"
+  ],
+  "requests": [
+    "gusto ko pumunta London 10 days, 4 star hotel, history and museums",
+    "London 7 days solo, budget friendly, mga 150k",
+    "Japan 6 days, 2 adults 2 kids, Disneyland and Universal, April",
+    "Tokyo and Osaka 5 days kami ng asawa ko, food trip and shopping",
+    "Japan 8 days autumn November, 4 star, 2 adults",
+    "Seoul 5 days barkada 4 pax, budget lang, shopping and Nami island",
+    "Korea 6 days 2 adults, sa April para sa cherry blossoms",
+    "Singapore 4 days family of 4, Universal Studios",
+    "Hong Kong 3 days 2 adults 1 kid, Disneyland",
+    "Bangkok 5 days 3 pax food trip and shopping, mura lang",
+    "Dubai 6 days 2 adults 5 star, desert safari",
+    "Bali honeymoon 6 days luxury villa",
+    "Taipei 4 days 2 adults, night markets and Jiufen",
+    "Boracay 4 days barkada 6 tao, beach and island hopping",
+    "El Nido 5 days kami ng asawa ko, island hopping",
+    "Paris 8 days 2 adults, Eiffel and Disneyland, 4 star",
+    "Japan 5 days 2 adults, budget 120k total",
+    "Singapore 5 days 2 adults 2 kids, May, mid range",
+    "Boracay 5 days family of 5, December",
+    "Seoul 5 days 2 adults, 60k each"
+  ],
+  "questions": [
+    "Kasama na po ba ang breakfast?",
+    "Pwede po bang installment ang bayad?",
+    "Ilang araw po bago lumabas ang visa?",
+    "Ang tagal po ng reply, may update na po ba sa offer?",
+    "Pwede po bang ilipat sa mas malapit na hotel sa train station?",
+    "Is airport pickup included?"
+  ],
+  "changes": [
+    "Medyo mahal po, pwede po bang mas mura na hotel?",
+    "Pwede po bang tanggalin ang isang tour para bumaba ang presyo?",
+    "Can we move the trip one week later?",
+    "Please add one more night in Osaka.",
+    "Sobrang mahal ng flights, may promo fare po ba?"
+  ],
+  "feedback": [
+    [5, "Sobrang ganda ng hotel at ang bait ng tour guide! Babalik kami next year."],
+    [5, "Super smooth ng trip, salamat PAPH! Highly recommend."],
+    [5, "Everything was well organized and the hotel was perfect. Thank you!"],
+    [4, "Maganda ang itinerary, medyo pagod lang sa dami ng lakad pero sulit."],
+    [4, "Good hotel and friendly staff. Visa process was easy."],
+    [4, "Sulit ang package, ang sarap ng food trip!"],
+    [3, "Okay naman ang trip pero late ang sundo sa airport."],
+    [3, "Ayos ang hotel pero sobrang tagal ng reply ng agent bago ang trip."],
+    [2, "Late ang airport transfer ng isang oras at walang update."],
+    [2, "Ang tagal mag-reply sa Messenger, muntik na kaming hindi makaalis."],
+    [1, "Disappointed, maliit at madumi ang hotel room kumpara sa picture."]
+  ],
+  "lost_notes": {
+    "price": ["Found a cheaper package online.", "Sabi nila mas mura sa ibang agency."],
+    "dates": ["Hindi pinayagan ang leave sa trabaho.", "Fully booked ang flights sa dates nila."],
+    "other_agency": ["Nag-book sa kakilala nilang agent."],
+    "no_response": ["No reply after we sent the quotation."],
+    "plans_changed": ["Trip cancelled because of a family emergency."]
+  }
+}

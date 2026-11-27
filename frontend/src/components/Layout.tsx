@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { BookOpen, ClipboardCheck, Inbox, LayoutDashboard, LogOut, Menu, ScrollText, Settings, Users, X } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, Inbox, LayoutDashboard, LogOut, Menu, ScrollText, Settings, Smile, Users, Wallet, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { IS_DEMO } from "../api";
@@ -63,8 +63,11 @@ const NAV = [
   { to: "/staff", label: "Overview", icon: LayoutDashboard, perm: "dashboard.view" },
   { to: "/staff/requests", label: "Requests", icon: Inbox, perm: "requests.view" },
   { to: "/staff/approvals", label: "Approvals", icon: ClipboardCheck, perm: "requests.approve" },
+  { to: "/staff/sentiment", label: "Customer sentiment", icon: Smile, perm: "owner.view" },
+  { to: "/staff/performance", label: "Team performance", icon: BarChart3, perm: "owner.view" },
+  { to: "/staff/revenue", label: "Revenue and margin", icon: Wallet, perm: "owner.view" },
   { to: "/staff/rates", label: "Sample rates", icon: BookOpen, perm: "catalog.view" },
-  { to: "/staff/team", label: "Team", icon: Users, perm: "users.manage" },
+  { to: "/staff/team", label: "Staff accounts", icon: Users, perm: "users.manage" },
   { to: "/staff/settings", label: "Settings", icon: Settings, perm: "settings.manage" },
   { to: "/staff/activity", label: "Activity", icon: ScrollText, perm: "audit.view" },
 ];

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, management, public
+from app.api import auth, management, owner, public
 from app.api import requests as requests_api
 from app.core.config import get_settings
 from app.db import Base, SessionLocal, engine
@@ -49,6 +49,7 @@ app.include_router(auth.router)
 app.include_router(public.router)
 app.include_router(requests_api.router)
 app.include_router(management.router)
+app.include_router(owner.router)
 
 
 @app.get("/api/health", tags=["system"])

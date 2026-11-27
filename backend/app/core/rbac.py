@@ -8,6 +8,7 @@ PERMISSIONS = {
     "users.manage": "Add, edit and turn off staff accounts",
     "settings.manage": "Change service fee, minimum margin, validity and payment terms",
     "audit.view": "See the activity log",
+    "owner.view": "Owner dashboards: customer sentiment, team performance, revenue and margin",
 }
 
 ROLES = {

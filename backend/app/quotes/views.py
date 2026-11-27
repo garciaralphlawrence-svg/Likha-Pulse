@@ -65,7 +65,7 @@ def detail(r: dict, role: str, settings: dict, now: str) -> dict:
 PUBLIC_EVENTS = {
     "submitted": "Request received", "ai_recommended": "AI estimate ready", "start_offer": "A travel consultant is preparing your offer",
     "approve": "Your offer is ready", "send": "Quotation sent to you", "customer_accept": "You accepted the offer", "customer_changes": "You asked for changes",
-    "customer_question": "You asked a question", "answer": "We answered your question", "mark_booked": "Booked. See you on your trip!",
+    "customer_question": "You asked a question", "customer_feedback": "You rated your trip", "answer": "We answered your question", "mark_booked": "Booked. See you on your trip!",
     "mark_lost": "Request closed", "decline": "Request closed",
 }
 
@@ -85,13 +85,14 @@ def public_view(r: dict, settings: dict, now: str) -> dict:
     st = STATUSES[r["status"]]
     quoted = r["status"] in QUOTED and bool(r.get("offer")) and bool(r.get("approval"))
     expired = is_expired(r, now)
-    can = [a for a in allowed(r, "CUSTOMER") if not (expired and a in ("customer_accept", "customer_changes"))]
+    can = [a for a in allowed(r, "CUSTOMER")
+           if not (expired and a in ("customer_accept", "customer_changes")) and not (a == "customer_feedback" and r.get("feedback"))]
     o = r.get("offer")
     return {
         "ref": r["ref"], "created_at": r["created_at"], "status": r["status"],
         "customer_status": "Offer expired: rates must be rechecked" if expired else st["customer"], "step": st["step"],
         "customer_name": r["customer"]["name"], "input": r["input"], "recommendation": r["recommendation"], "addons": r["addons"],
-        "expired": expired, "question": r.get("customer_question"),
+        "expired": expired, "question": r.get("customer_question"), "feedback": r.get("feedback"),
         "offer": {"option": o["option"], "lines": [{"label": x["label"], "detail": x["detail"], "price": x["price"]} for x in o["lines"]],
                   "discount": o["discount"], "total": o["totals"]["price"], "per_person": o["totals"]["per_person"], "notes": o["notes"]} if quoted else None,
         "terms": quotation_terms(r, settings, now) if quoted else None,

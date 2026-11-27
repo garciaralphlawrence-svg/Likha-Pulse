@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 
 const dir = mkdtempSync(join(tmpdir(), "paph-"));
 const out = join(dir, "quote.mjs");
-await build({ stdin: { contents: "export * from './src/quote/engine.ts'; export * from './src/quote/workflow.ts';", resolveDir: process.cwd(), loader: "ts" }, bundle: true, format: "esm", platform: "node", outfile: out, logLevel: "silent" });
+await build({ stdin: { contents: "export * from './src/quote/engine.ts'; export * from './src/quote/workflow.ts'; export * from './src/quote/history.ts'; export * from './src/quote/owner.ts';", resolveDir: process.cwd(), loader: "ts" }, bundle: true, format: "esm", platform: "node", outfile: out, logLevel: "silent" });
 const Q = await import(pathToFileURL(out).href);
 const CASES_PATH = "../backend/tests/quote_cases.json";
 const cases = JSON.parse(readFileSync(CASES_PATH, "utf8"));
@@ -34,6 +34,26 @@ for (const c of cases.recommend) {
   const got = summary(Q.recommend(c.input));
   if (update) cases.golden[c.name] = got;
   else check(JSON.stringify(got) === JSON.stringify(cases.golden[c.name]), `golden mismatch: ${c.name}\n got ${JSON.stringify(got)}\n exp ${JSON.stringify(cases.golden[c.name])}`);
+}
+// 2b. sample history + owner report (same in Python: same seed, same workflow, same sentiment engine)
+{
+  const NOW = "2026-11-27T02:00:00.000Z";
+  const A = (id, name, role) => ({ id, name, role });
+  const hist = Q.generateHistory(NOW, { sales: [A("s1", "Demo Salesperson", "SALES"), A("s2", "Second Salesperson (sample)", "SALES")], agent: A("a1", "Demo Travel Agent", "AGENT") }, 1, Q.DEFAULT_SETTINGS);
+  const rep = Q.ownerReport(hist, { range: "all", destination: "", salesperson: "" }, NOW);
+  const rep90 = Q.ownerReport(hist, { range: "90", destination: "japan", salesperson: "s1" }, NOW);
+  const got = {
+    refs: [hist[0].ref, hist[hist.length - 1].ref], statuses: hist.map((r) => r.status).join(","), last_event: hist[hist.length - 1].events.map((e) => [e.action, e.at]),
+    feedback: hist.filter((r) => r.feedback).map((r) => r.feedback.rating).join(""), briefing: rep.briefing,
+    sentiment: [rep.sentiment.total, rep.sentiment.positive, rep.sentiment.neutral, rep.sentiment.negative, rep.sentiment.avg_score, rep.sentiment.ratings],
+    trend: rep.sentiment.trend.map((t) => [t.period, t.count, t.score]), themes: rep.sentiment.themes.map((t) => [t.theme, t.count, t.negative, t.requests]),
+    team: rep.team, revenue: [rep.revenue.booked, rep.revenue.margin, rep.revenue.margin_pct, rep.revenue.pipeline, rep.revenue.avg_booking, rep.revenue.quote_to_book_pct],
+    by_month: rep.revenue.by_month, funnel: rep.revenue.funnel.map((f) => f.count), lost: rep.revenue.lost_reasons,
+    filtered: [rep90.requests, rep90.sentiment.total, rep90.revenue.booked, rep90.team.length],
+  };
+  if (update) cases.owner_golden = got;
+  else check(JSON.stringify(got) === JSON.stringify(cases.owner_golden), `owner golden mismatch
+ got ${JSON.stringify(got).slice(0, 600)}`);
 }
 if (update) writeFileSync(CASES_PATH, JSON.stringify(cases, null, 2) + "\n");
 

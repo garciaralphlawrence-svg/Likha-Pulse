@@ -81,7 +81,52 @@ NOTES = {"request_changes": "Please use a cheaper hotel area and drop one tour."
          "decline": "Dates are fully booked with our partners; offer another month."}
 
 
-def seed_samples(db: Session, settings: dict) -> int:
+def sample_staff(db: Session) -> dict:
+    """Labeled sample staff (two salespeople, one agent) so the sample history has a team. Random passwords: nobody can sign in as them."""
+    import secrets
+
+    from app.core.security import hash_password
+    from app.models import Role, User
+
+    want = [("sample.sales1@example.com", "Mia (sample salesperson)", "SALES"), ("sample.sales2@example.com", "Rico (sample salesperson)", "SALES"),
+            ("sample.agent@example.com", "Paolo (sample agent)", "AGENT")]
+    actors = []
+    for email, name, role in want:
+        u = db.scalar(select(User).where(User.email == email))
+        if not u:
+            u = User(email=email, full_name=name, role_id=db.scalar(select(Role.id).where(Role.name == role)),
+                     password_hash=hash_password(secrets.token_urlsafe(32)))
+            db.add(u)
+            db.flush()
+        actors.append({"id": u.id, "name": u.full_name, "role": role})
+    db.commit()
+    return {"sales": actors[:2], "agent": actors[2]}
+
+
+def seed_history(db: Session, settings: dict, people: dict) -> int:
+    """About 6 months of closed sample requests (booked, lost, declined) for the owner dashboards."""
+    from app.quotes.history import generate_history
+
+    year = datetime.now(timezone.utc).year
+    first = (db.get(RefCounter, year).last if db.get(RefCounter, year) else 0) + 1
+    hist = generate_history(W.now_iso(), people, first, settings)
+    top: dict[int, int] = {}
+    for r in hist:
+        db.add(to_row(None, r))
+        y, n = int(r["ref"][5:9]), int(r["ref"][-4:])
+        top[y] = max(top.get(y, 0), n)
+    for y, n in top.items():
+        row = db.get(RefCounter, y) or RefCounter(year=y, last=0)
+        row.last = max(row.last or 0, n)
+        db.add(row)
+    db.commit()
+    return len(hist)
+
+
+def seed_samples(db: Session, settings: dict, people: dict | None = None) -> int:
+    """Live sample requests across the whole flow (the sales queue, approvals, offers out)."""
+    sales = people["sales"][0] if people else SAMPLE_SALES
+    agent_actor = people["agent"] if people else SAMPLE_AGENT
     base = datetime.now(timezone.utc)
     for hours, name, contact, text, inp, addons, steps in SAMPLES:
         t0 = base - timedelta(hours=hours)
@@ -89,11 +134,11 @@ def seed_samples(db: Session, settings: dict) -> int:
                    now=iso(t0), is_sample=True)
         for i, step in enumerate(steps):
             if step in ("approve", "request_changes", "decline"):
-                actor = SAMPLE_AGENT
+                actor = agent_actor
             elif step.startswith("customer_"):
                 actor = {"id": "customer", "name": name, "role": "CUSTOMER"}
             else:
-                actor = SAMPLE_SALES
+                actor = sales
             payload = {"note": NOTES.get(step, "")}
             if step == "mark_lost":
                 payload["reason"] = "other_agency"

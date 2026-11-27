@@ -105,3 +105,33 @@ def test_workflow_rules():
 
 def test_time_format_matches_javascript():
     assert W.add_days(T0, 7) == "2026-12-04T02:00:00.000Z"
+
+
+def test_owner_history_and_report_match_typescript():
+    """Sample history (seeded random walk through the workflow) and the owner report give exactly the TS numbers."""
+    from app.quotes.history import generate_history
+    from app.quotes.owner import owner_report
+
+    now = "2026-11-27T02:00:00.000Z"
+
+    def a(i, n, r):
+        return {"id": i, "name": n, "role": r}
+
+    hist = generate_history(now, {"sales": [a("s1", "Demo Salesperson", "SALES"), a("s2", "Second Salesperson (sample)", "SALES")],
+                                  "agent": a("a1", "Demo Travel Agent", "AGENT")}, 1, W.DEFAULT_SETTINGS)
+    rep = owner_report(hist, {"range": "all", "destination": "", "salesperson": ""}, now)
+    rep90 = owner_report(hist, {"range": "90", "destination": "japan", "salesperson": "s1"}, now)
+    s = rep["sentiment"]
+    got = {
+        "refs": [hist[0]["ref"], hist[-1]["ref"]], "statuses": ",".join(r["status"] for r in hist),
+        "last_event": [[e["action"], e["at"]] for e in hist[-1]["events"]],
+        "feedback": "".join(str(r["feedback"]["rating"]) for r in hist if r.get("feedback")), "briefing": rep["briefing"],
+        "sentiment": [s["total"], s["positive"], s["neutral"], s["negative"], s["avg_score"], s["ratings"]],
+        "trend": [[t["period"], t["count"], t["score"]] for t in s["trend"]], "themes": [[t["theme"], t["count"], t["negative"], t["requests"]] for t in s["themes"]],
+        "team": rep["team"], "revenue": [rep["revenue"][k] for k in ("booked", "margin", "margin_pct", "pipeline", "avg_booking", "quote_to_book_pct")],
+        "by_month": rep["revenue"]["by_month"], "funnel": [f["count"] for f in rep["revenue"]["funnel"]], "lost": rep["revenue"]["lost_reasons"],
+        "filtered": [rep90["requests"], rep90["sentiment"]["total"], rep90["revenue"]["booked"], len(rep90["team"])],
+    }
+    expected = CASES["owner_golden"]
+    for k in expected:
+        assert json.loads(json.dumps(got[k])) == expected[k], k

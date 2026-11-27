@@ -14,6 +14,11 @@
 4. **Agent** (role AGENT) compares the offer with the AI range and the margin, then approves, asks for changes (with a note) or declines.
    Approval issues the quotation (reference number, validity date, payment schedule, inclusions/exclusions, visa checklist).
 5. **Customer** tracks the request with the reference number and the same mobile/email, and can accept, ask a question, or request changes.
+   After a booked trip the customer can rate it once (1 to 5 stars and a comment).
+6. **Owner dashboards** (ADMIN only): every customer message (trip request, questions, change requests, after-trip reviews) is read by the
+   free sentiment engine (`app/sentiment/rule_engine.py`, English/Tagalog/Taglish) and summed up as a one-line briefing, mood trend,
+   mood by destination, salesperson and stage, themes customers complain about, team performance (response time, approval and booking
+   rates, margin) and revenue (booked, margin, pipeline, funnel, lost reasons). Logic: `app/quotes/owner.py`.
 
 ## Rules (enforced in one place: `app/quotes/workflow.py`, twin of `frontend/src/quote/workflow.ts`)
 - One request = one reference number (`PAPH-2026-0001`, counter per year, row-locked).
@@ -32,6 +37,9 @@
 | `backend/app/quotes/workflow.json` | Statuses, steps, which role may do which step, lost reasons |
 | `backend/app/quotes/engine.py` | Reads the free text and prices the trip (deterministic: same inputs, same numbers) |
 | `backend/app/quotes/workflow.py` | Requests, offers, totals, guard rules, quotation terms |
+| `backend/app/quotes/owner.py` | Owner report: briefing, sentiment, team, revenue, CSV of customer messages |
+| `backend/app/quotes/history.py` + `sample_history.json` | ~6 months of seeded sample past requests (same random sequence as the TypeScript twin) |
+| `backend/app/sentiment/` | Free customer sentiment engine and its word lists |
 | `backend/app/quotes/views.py` | Sales queue rows, customer tracking view (never shows costs or margin), dashboard |
 | `backend/app/api/public.py` | Customer endpoints (no login, rate-limited) |
 | `backend/app/api/requests.py` | Staff queue, request detail and workflow steps |

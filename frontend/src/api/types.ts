@@ -1,5 +1,7 @@
 // API contract shared by the browser demo (demo/demoApi.ts) and the FastAPI server (api/server.ts -> backend/app/api).
 import type { Parsed, Recommendation, TripInput } from "../quote/engine";
+import type { OwnerFilters, OwnerReport } from "../quote/owner";
+export type { OwnerFilters, OwnerReport };
 import type { ActionCode, ActionPayload, OfferLine, QuotationTerms, Settings, Status, TravelRequest } from "../quote/workflow";
 
 export type { Settings, TravelRequest };
@@ -21,7 +23,7 @@ export interface RequestDetail extends TravelRequest { allowed: ActionCode[]; ex
 /** What the customer can see when tracking (never shows PAPH's costs or margin). */
 export interface PublicView {
   ref: string; created_at: string; status: Status; customer_status: string; step: number; customer_name: string; input: TripInput;
-  recommendation: Recommendation; addons: string[]; expired: boolean; question: { text: string; at: string } | null;
+  recommendation: Recommendation; addons: string[]; expired: boolean; question: { text: string; at: string } | null; feedback: { rating: number; text: string; at: string } | null;
   offer: { option: string | null; lines: Pick<OfferLine, "label" | "detail" | "price">[]; discount: number; total: number; per_person: number; notes: string } | null;
   terms: QuotationTerms | null; timeline: { at: string; label: string }[]; can: ActionCode[];
 }
@@ -41,9 +43,11 @@ export interface Api {
   // customer (public, no login)
   submitRequest(r: NewRequest): Promise<{ ref: string; contact: string }>;
   track(ref: string, contact: string): Promise<PublicView>;
-  customerAction(ref: string, contact: string, action: ActionCode, note?: string): Promise<PublicView>;
+  customerAction(ref: string, contact: string, action: ActionCode, note?: string, rating?: number): Promise<PublicView>;
   // staff
   dashboard(): Promise<Dashboard>;
+  /** Owner only: briefing, customer sentiment, team performance, revenue. */
+  owner(f: OwnerFilters): Promise<OwnerReport>;
   requests(view: "queue" | "approval" | "open" | "closed" | "all"): Promise<RequestSummary[]>;
   request(id: string): Promise<RequestDetail>;
   act(id: string, action: ActionCode, payload: ActionPayload): Promise<RequestDetail>;

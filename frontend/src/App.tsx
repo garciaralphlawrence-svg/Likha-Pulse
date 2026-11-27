@@ -15,6 +15,9 @@ const Rates = lazy(() => import("./pages/Rates"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const Audit = lazy(() => import("./pages/Audit"));
+const Sentiment = lazy(() => import("./pages/Sentiment"));
+const Performance = lazy(() => import("./pages/Performance"));
+const Revenue = lazy(() => import("./pages/Revenue"));
 
 function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const { can } = useAuth();
@@ -34,6 +37,9 @@ function Staff() {
           <Route path="approvals" element={<Guard perm="requests.approve"><Requests initial="approval" /></Guard>} />
           <Route path="requests/:id" element={<Guard perm="requests.view"><RequestDetail /></Guard>} />
           <Route path="quote/:id" element={<Guard perm="requests.view"><QuotePage /></Guard>} />
+          <Route path="sentiment" element={<Guard perm="owner.view"><Sentiment /></Guard>} />
+          <Route path="performance" element={<Guard perm="owner.view"><Performance /></Guard>} />
+          <Route path="revenue" element={<Guard perm="owner.view"><Revenue /></Guard>} />
           <Route path="rates" element={<Guard perm="catalog.view"><Rates /></Guard>} />
           <Route path="team" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
           <Route path="settings" element={<Guard perm="settings.manage"><SettingsPage /></Guard>} />
