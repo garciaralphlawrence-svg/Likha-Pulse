@@ -305,8 +305,10 @@ def _briefing(scoped: list[dict], rep: dict, now: str) -> dict:
         verdict = "Not enough customer messages yet to read the mood."
     elif s["negative"] > s["positive"]:
         verdict = f"More customers are unhappy than happy right now{about}. Fix that first."
-    elif s["positive"] >= 2 * s["negative"]:
+    elif s["positive"] >= 2 * s["negative"] and s["positive"] >= 0.4 * s["total"]:
         verdict = f"Customers are mostly happy: {s['positive']} happy messages and {s['negative']} unhappy{', mostly about ' + worst['label'].lower() if worst else ''}."
+    elif s["positive"] >= 2 * s["negative"]:
+        verdict = f"Most customer messages are neutral. Of those with a clear mood, {s['positive']} are happy and {s['negative']} unhappy{about}."
     else:
         verdict = f"Customer mood is mixed: {s['positive']} happy and {s['negative']} unhappy messages{about}."
     return {"verdict": verdict, "bullets": bullets[:4]}

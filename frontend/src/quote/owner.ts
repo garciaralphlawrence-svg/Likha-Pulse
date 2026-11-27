@@ -206,7 +206,8 @@ function briefing(scoped: TravelRequest[], rep: OwnerReport, now: string) {
   const about = worst ? `, mainly about ${worst.label.toLowerCase()}` : "";
   const verdict = !s.total ? "Not enough customer messages yet to read the mood."
     : s.negative > s.positive ? `More customers are unhappy than happy right now${about}. Fix that first.`
-    : s.positive >= 2 * s.negative ? `Customers are mostly happy: ${s.positive} happy messages and ${s.negative} unhappy${worst ? `, mostly about ${worst.label.toLowerCase()}` : ""}.`
+    : s.positive >= 2 * s.negative && s.positive >= 0.4 * s.total ? `Customers are mostly happy: ${s.positive} happy messages and ${s.negative} unhappy${worst ? `, mostly about ${worst.label.toLowerCase()}` : ""}.`
+    : s.positive >= 2 * s.negative ? `Most customer messages are neutral. Of those with a clear mood, ${s.positive} are happy and ${s.negative} unhappy${about}.`
     : `Customer mood is mixed: ${s.positive} happy and ${s.negative} unhappy messages${about}.`;
   return { verdict, bullets: bullets.slice(0, 4) };
 }
