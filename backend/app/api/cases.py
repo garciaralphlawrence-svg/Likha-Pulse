@@ -44,6 +44,8 @@ def case_action(fid: str, body: ActionIn, request: Request, user: User = Depends
         C.add_update(c, "assigned", f"Assigned to {u.full_name}" if u else "Unassigned", by)
     elif body.kind == "reply":
         c.first_reply_at = c.first_reply_at or now
+        c.feedback.first_reply_at = c.feedback.first_reply_at or now
+        c.feedback.handled_by_id = c.feedback.handled_by_id or c.assignee_id or user.id
         C.add_update(c, "reply", (body.text or "").strip() or "Replied to the traveler", by)
     elif body.kind == "step":
         steps = [dict(s) for s in (c.steps or [])]
@@ -59,6 +61,7 @@ def case_action(fid: str, body: ActionIn, request: Request, user: User = Depends
     elif body.kind == "solve":
         C.solve(c, by, (body.text or "").strip())
         c.feedback.action_status, c.feedback.resolved_at = "resolved", c.resolved_at
+        c.feedback.handled_by_id = c.feedback.handled_by_id or c.assignee_id or user.id
     elif body.kind == "reopen":
         C.reopen(c, by)
         c.feedback.action_status, c.feedback.resolved_at = "pending_action", None

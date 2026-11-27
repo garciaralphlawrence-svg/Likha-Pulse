@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Bell, FileText, Inbox, LayoutDashboard, LogOut, Menu, Plug, ScrollText, Settings, Siren, Sparkles, Timer, Users, Wand2, X } from "lucide-react";
+import { BarChart3, Bell, Eye, FileText, FileUp, Inbox, LayoutDashboard, LogOut, Mail, Menu, MessageSquareQuote, Plug, ScrollText, Settings, Siren, Sparkles, Timer, Users, Wand2, X } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { api, IS_DEMO } from "../api";
@@ -14,11 +14,18 @@ const NAV = [
     { to: "/feedback", label: "Inbox", hint: "Comments & chats", icon: Inbox, perm: "feedback.view" },
     { to: "/priority", label: "Needs Attention", icon: Siren, perm: "feedback.view" },
     { to: "/cases", label: "Response Clock", icon: Timer, perm: "feedback.view" },
+    { to: "/watch", label: "Keyword Watch", icon: Eye, perm: "feedback.view" },
     { to: "/insights", label: "AI Summary", icon: Sparkles, perm: "dashboard.view" },
+  ] },
+  { group: "Team tools", items: [
+    { to: "/replies", label: "Suggested Replies", icon: MessageSquareQuote, perm: "feedback.view" },
+    { to: "/team-report", label: "Team Report", icon: BarChart3, perm: "reports.view" },
+    { to: "/weekly", label: "Weekly Report", icon: Mail, perm: "reports.view" },
   ] },
   { group: "Tools", items: [
     { to: "/sentiment", label: "Ask the AI", icon: Wand2, perm: "feedback.view" },
     { to: "/reports", label: "Reports", icon: FileText, perm: "reports.view" },
+    { to: "/import", label: "Import Past Feedback", icon: FileUp, perm: "feedback.manage" },
     { to: "/integrations", label: "Connections", icon: Plug, perm: "dashboard.view" },
   ] },
   { group: "Admin", items: [
@@ -72,7 +79,7 @@ function Notifications() {
             {data.items.map((n) => (
               <li key={n.id}>
                 <button className={clsx("flex w-full gap-3 px-5 py-3.5 text-left transition hover:bg-white", !n.read && "bg-gold-50/60")}
-                  onClick={() => { api.markRead(n.id).then(load); setOpen(false); if (n.feedback_id) nav(n.kind.startsWith("case_") ? `/cases?open=${n.feedback_id}` : `/feedback?open=${n.feedback_id}`); }}>
+                  onClick={() => { api.markRead(n.id).then(load); setOpen(false); if (n.feedback_id) nav(n.kind.startsWith("case_") ? `/cases?open=${n.feedback_id}` : n.kind === "keyword_match" ? `/watch?open=${n.feedback_id}` : `/feedback?open=${n.feedback_id}`); }}>
                   <span className={clsx("mt-1.5 h-2 w-2 shrink-0 rounded-full", sev[n.severity] ?? "bg-ink-400")} />
                   <span className="min-w-0">
                     <span className="block text-sm font-medium text-ink-900">{n.title}</span>

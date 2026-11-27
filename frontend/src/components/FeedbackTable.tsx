@@ -1,22 +1,24 @@
 // Inbox list: each comment / review / chat as a message card with the AI's one-line review.
 import clsx from "clsx";
-import { ChevronLeft, ChevronRight, Facebook, MessageCircle, PenLine, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Facebook, FileUp, MessageCircle, PenLine, Star } from "lucide-react";
 import type { FeedbackItem, Paged } from "../api/types";
 import { PLATFORM_LABEL, SENT_COLORS, ago, headline } from "../lib/format";
 import { Empty, PriorityBadge, SampleTag, Tag } from "./ui";
 
 function SourceIcon({ p }: { p: string }) {
   const map: Record<string, [JSX.Element, string]> = {
-    google_business: [<span className="font-display text-base font-bold">G</span>, "bg-white text-ink-800 ring-1 ring-ivory-300"],
     facebook_page: [<Facebook className="h-4 w-4" />, "bg-ink-900 text-gold-300"],
     messenger: [<MessageCircle className="h-4 w-4" />, "bg-gold-500 text-white"],
     manual: [<PenLine className="h-4 w-4" />, "bg-ivory-200 text-ink-700"],
+    import: [<FileUp className="h-4 w-4" />, "bg-ivory-100 text-gold-700 ring-1 ring-ivory-300"],
   };
   const [icon, cls] = map[p] ?? map.manual;
   return <span className={clsx("grid h-10 w-10 shrink-0 place-items-center rounded-full", cls)}>{icon}</span>;
 }
 
-export default function FeedbackTable({ data, page, pageSize, onPage, onOpen }: { data: Paged<FeedbackItem>; page: number; pageSize: number; onPage: (p: number) => void; onOpen: (id: string) => void }) {
+export function SourceBadge({ p }: { p: string }) { return <SourceIcon p={p} />; }
+
+export default function FeedbackTable({ data, page, pageSize, onPage, onOpen, hideClient = false }: { data: Paged<FeedbackItem>; page: number; pageSize: number; onPage: (p: number) => void; onOpen: (id: string) => void; hideClient?: boolean }) {
   const pages = Math.max(1, Math.ceil(data.total / pageSize));
   if (!data.items.length) return <Empty title="No messages here">Try a different time period or filter.</Empty>;
   return (
@@ -28,11 +30,12 @@ export default function FeedbackTable({ data, page, pageSize, onPage, onOpen }: 
               <SourceIcon p={r.platform} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-400">
+                  {!hideClient && <><span className="font-medium text-ink-800">{r.client}</span><span>·</span></>}
                   <span className="font-medium text-ink-700">{PLATFORM_LABEL[r.platform] ?? r.platform_name}</span>
                   <span>·</span><span>{ago(r.created_at)}</span>
                   {r.rating && <span className="flex items-center gap-0.5 text-gold-500">{Array.from({ length: Math.round(r.rating) }, (_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}</span>}
                   {r.is_sample && <SampleTag />}
-                  {r.action_status === "resolved" && <Tag tone="green">Done</Tag>}
+                  {r.is_imported ? <Tag>Imported</Tag> : r.action_status === "resolved" && <Tag tone="green">Done</Tag>}
                 </div>
                 <p className="mt-1.5 line-clamp-2 text-[15px] leading-relaxed text-ink-900">“{r.content}”</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -42,6 +45,7 @@ export default function FeedbackTable({ data, page, pageSize, onPage, onOpen }: 
                   </span>
                   {r.possible_sarcasm && <Tag tone="gold">Might be sarcastic</Tag>}
                   {r.review_status === "pending_review" && <Tag tone="gold">Please double-check</Tag>}
+                  {r.watch_hits?.length > 0 && <Tag tone="red"><Eye className="mr-1 h-3 w-3" />{r.watch_hits.join(", ")}</Tag>}
                 </div>
               </div>
               <div className="hidden shrink-0 flex-col items-end gap-2 sm:flex"><PriorityBadge value={r.priority} /></div>

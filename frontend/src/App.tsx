@@ -17,6 +17,12 @@ const Integrations = lazy(() => import("./pages/Integrations"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const Audit = lazy(() => import("./pages/Audit"));
+const ClientHistory = lazy(() => import("./pages/ClientHistory"));
+const Replies = lazy(() => import("./pages/Replies"));
+const KeywordWatch = lazy(() => import("./pages/KeywordWatch"));
+const TeamReport = lazy(() => import("./pages/TeamReport"));
+const WeeklyReport = lazy(() => import("./pages/WeeklyReport"));
+const ImportPage = lazy(() => import("./pages/Import"));
 
 function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const { can } = useAuth();
@@ -42,6 +48,12 @@ function Shell() {
           <Route path="/users" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
           <Route path="/settings" element={<Guard perm="settings.manage"><SettingsPage /></Guard>} />
           <Route path="/audit" element={<Guard perm="audit.view"><Audit /></Guard>} />
+          <Route path="/clients/:ref" element={<Guard perm="feedback.view"><ClientHistory /></Guard>} />
+          <Route path="/replies" element={<Guard perm="feedback.view"><Replies /></Guard>} />
+          <Route path="/watch" element={<Guard perm="feedback.view"><KeywordWatch /></Guard>} />
+          <Route path="/team-report" element={<Guard perm="reports.view"><TeamReport /></Guard>} />
+          <Route path="/weekly" element={<Guard perm="reports.view"><WeeklyReport /></Guard>} />
+          <Route path="/import" element={<Guard perm="feedback.manage"><ImportPage /></Guard>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>

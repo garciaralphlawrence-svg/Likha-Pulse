@@ -77,4 +77,28 @@ export const serverApi: Api = {
   audit: (action, page = 1) => req(`/api/audit${qs({}, { action, page })}`),
   cases: (view) => req(`/api/cases${qs({}, { view })}`),
   caseAction: (id, action) => post(`/api/cases/${id}/actions`, action),
+  client: (ref) => req(`/api/clients/${encodeURIComponent(ref)}`),
+  replyTemplates: () => req("/api/reply-templates"),
+  saveTemplate: (t, id) => (id ? req(`/api/reply-templates/${id}`, { method: "PUT", body: JSON.stringify(t) }) : post("/api/reply-templates", t)),
+  deleteTemplate: (id) => req(`/api/reply-templates/${id}`, { method: "DELETE" }).then(() => undefined),
+  suggestions: (id) => req(`/api/feedback/${id}/replies`),
+  markReplied: (id) => post(`/api/feedback/${id}/replied`),
+  keywordWatch: (days) => req(`/api/keyword-watch${qs({}, { days })}`),
+  teamReport: (months) => req(`/api/team-report${qs({}, { months })}`),
+  async downloadTeamReport(months) {
+    const res = await fetch(`${BASE}/api/team-report/csv?months=${months}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, "Download failed");
+    saveBlob(await res.blob(), `team-response-report-${new Date().toISOString().slice(0, 10)}.csv`);
+  },
+  weeklyReport: () => req("/api/weekly-report"),
+  sendWeeklyReport: () => post("/api/weekly-report/send"),
+  importRows: (file_name, rows) => post("/api/import", { file_name, rows }),
 };
+
+function saveBlob(blob: Blob, name: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}

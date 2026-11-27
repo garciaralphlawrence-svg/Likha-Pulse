@@ -51,6 +51,17 @@ whether the traveler is on a trip right now, the owner, the first reply time, an
 The team logs replies, steps and notes in the timeline and marks the case as solved. Marking a message as done in the Inbox also solves its case.
 Change the hours in **Settings → Response clock**. Playbooks are in `backend/app/services/playbooks.json`.
 
+## Team tools
+
+- **Client history**: open any message and tap *See all messages from this client*. Names are shown only when
+  `ANONYMIZE_AUTHORS=false`; otherwise each client gets a short private code (e.g. *Client 7F3A*).
+- **Suggested Replies**: each message shows ready replies in Taglish and English with a Copy button. Edit them under
+  *Suggested Replies*. Replies are never sent automatically. Tap *I replied* after answering so the Team Report counts it.
+- **Keyword Watch**: the owner adds words; matching messages get a red tag in the Inbox and an alert.
+- **Team Report**: first reply time and time to solve per staff member and per month. *Export CSV* downloads it.
+- **Weekly Report**: preview, on/off and recipients (empty = the owner account). Sent Mondays 8:00 AM once email is set up.
+- **Import Past Feedback**: upload .xlsx or .csv, match the columns, check the preview, import. Download the sample CSV first.
+
 ## Human validation
 
 Open any item, change sentiment/emotion/intent/priority, add a note and **Save correction** (or **Confirm AI result**).

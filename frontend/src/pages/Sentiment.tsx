@@ -29,7 +29,7 @@ export default function Sentiment() {
 
   return (
     <>
-      <PageHeader eyebrow="Ask the AI" title="What is this customer really saying?" description="Paste any comment, review or chat — English, Tagalog or Taglish. Nothing you type here is saved." />
+      <PageHeader eyebrow="Ask the AI" title="What is this customer really saying?" description="Paste any Facebook comment or Messenger chat — English, Tagalog or Taglish. Nothing you type here is saved." />
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         <div className="card p-6">
           <textarea className="input min-h-[170px] resize-none rounded-2xl text-[17px] leading-relaxed" placeholder="e.g. Okay naman ang tour pero sobrang tagal ng sundo sa airport…" value={text} onChange={(e) => setText(e.target.value)} aria-label="Message to review" />

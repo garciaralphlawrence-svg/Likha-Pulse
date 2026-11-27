@@ -15,7 +15,8 @@ from app.nlp.pipeline import analyze_feedback, run_analysis
 from app.nlp.rule_engine import EMOTIONS, INTENTS, LEXICON
 from app.services import cases
 from app.services import filters as F
-from app.services.ingestion import ingest
+from app.services.ingestion import PLATFORM_NAMES, ingest
+from app.services.watch import watch_words
 from app.services.settings_service import get_setting
 
 router = APIRouter(prefix="/api", tags=["feedback"])
@@ -26,8 +27,7 @@ LABELS, PRIOS = ["positive", "neutral", "negative"], ["critical", "high", "mediu
 def meta(user: User = Depends(require("feedback.view"))):
     return {"sentiments": LABELS, "priorities": PRIOS, "emotions": EMOTIONS, "intents": INTENTS,
             "topics": list(LEXICON["topics"].keys()) + ["General"],
-            "platforms": [{"code": "google_business", "name": "Google Business Profile"}, {"code": "facebook_page", "name": "Facebook Page comments"},
-                          {"code": "messenger", "name": "Facebook Messenger"}, {"code": "manual", "name": "Manual entry"}]}
+            "platforms": [{"code": c, "name": n} for c, n in PLATFORM_NAMES.items()]}
 
 
 @router.get("/feedback")
@@ -36,7 +36,8 @@ def list_feedback(f: F.FeedbackFilters = Depends(filters_dep), page: int = 1, pa
     page_size = min(int(page_size), 200)
     total = db.scalar(F.apply(select(func.count(Feedback.id.distinct())).select_from(Feedback), f)) or 0
     items = F.fetch(db, f, limit=page_size, offset=(max(page, 1) - 1) * page_size)
-    return {"total": total, "page": page, "page_size": page_size, "items": [feedback_out(x) for x in items]}
+    words = watch_words(db)
+    return {"total": total, "page": page, "page_size": page_size, "items": [feedback_out(x, watch=words) for x in items]}
 
 
 @router.get("/feedback/{fid}")
@@ -44,7 +45,13 @@ def get_feedback(fid: str, user: User = Depends(require("feedback.view")), db: S
     fb = db.get(Feedback, fid)
     if not fb:
         raise HTTPException(404, "Feedback not found")
-    return feedback_out(fb, detail=True)
+    return detail_out(db, fb)
+
+
+def detail_out(db: Session, fb: Feedback) -> dict:
+    out = feedback_out(fb, detail=True, watch=watch_words(db))
+    out["client_messages"] = db.scalar(select(func.count(Feedback.id)).where(Feedback.author_ref == fb.author_ref)) if fb.author_ref != "anonymous" else 1
+    return out
 
 
 class ManualIn(BaseModel):
@@ -60,7 +67,7 @@ def add_feedback(body: ManualIn, request: Request, user: User = Depends(require(
     if not fb:
         raise HTTPException(409, "This feedback was already recorded (duplicate).")
     audit(db, user, "feedback_added", "feedback", fb.id, {}, request)
-    return feedback_out(fb, detail=True)
+    return detail_out(db, fb)
 
 
 class ReviewIn(BaseModel):
@@ -100,7 +107,7 @@ def review(fid: str, body: ReviewIn, request: Request, user: User = Depends(requ
     db.commit()
     audit(db, user, "feedback_reviewed", "feedback", fb.id, {"changes": changes, "note": body.note}, request)
     db.refresh(fb)
-    return feedback_out(fb, detail=True)
+    return detail_out(db, fb)
 
 
 class StatusIn(BaseModel):
@@ -114,13 +121,15 @@ def set_status(fid: str, body: StatusIn, request: Request, user: User = Depends(
         raise HTTPException(404, "Feedback not found")
     fb.action_status = body.action_status
     fb.resolved_at = datetime.now(timezone.utc) if body.action_status == "resolved" else None
+    if body.action_status == "resolved":
+        fb.handled_by_id = fb.handled_by_id or user.id
     if fb.case and body.action_status == "resolved":
         cases.solve(fb.case, user.full_name)
     elif fb.case and fb.case.resolved_at:
         cases.reopen(fb.case, user.full_name)
     db.commit()
     audit(db, user, "feedback_status", "feedback", fb.id, {"status": body.action_status}, request)
-    return feedback_out(fb, detail=True)
+    return detail_out(db, fb)
 
 
 @router.post("/feedback/{fid}/reanalyze")
@@ -131,7 +140,7 @@ def reanalyze(fid: str, request: Request, user: User = Depends(require("feedback
     analyze_feedback(db, fb)
     audit(db, user, "feedback_reanalyzed", "feedback", fb.id, {}, request)
     db.refresh(fb)
-    return feedback_out(fb, detail=True)
+    return detail_out(db, fb)
 
 
 class AnalyzeIn(BaseModel):

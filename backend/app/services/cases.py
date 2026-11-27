@@ -192,7 +192,8 @@ def seed_cases(db: Session) -> int:
     live, n = set(), 0
     for i, sc in enumerate(data):
         t0 = now - timedelta(hours=sc["hours_ago"])
-        item = FetchedItem(external_id=f"sample-case-{i}", content=sc["text"], created_at=t0, author=f"sample-case-{i}", rating=None)
+        item = FetchedItem(external_id=f"sample-case-{i}", content=sc["text"], created_at=t0, author=f"sample-case-{i}", rating=None,
+                           author_name=f"Sample traveler {201 + i}")
         fb = ingest(db, sc["platform"], item, is_sample=True, notify=False)
         if not fb or not fb.case:
             continue
@@ -214,6 +215,7 @@ def seed_cases(db: Session) -> int:
             add_update(c, "step", f"Done: {steps[k]['text']}", who or "Team", min(now - timedelta(minutes=10), when))
         c.steps = steps
     rng = random.Random(7)
+    members = list(users.values())
     for c in db.scalars(select(Case).where(Case.resolved_at.is_(None))).unique().all():
         if c.feedback_id in live:
             continue
@@ -224,7 +226,11 @@ def seed_cases(db: Session) -> int:
         urgent = bool(c.feedback.priority) and c.feedback.priority.final_level == "critical"
         reply_min = min(age_h * 60 - 1, 8 + rng.random() * 70 if urgent else 15 + rng.random() * 260)
         c.first_reply_at = t0 + timedelta(minutes=reply_min)
-        add_update(c, "reply", "Replied to the traveler", "Team", c.first_reply_at)
+        member = rng.choice(members) if members else None
+        if member:
+            c.assignee_id = c.feedback.handled_by_id = member.id
+        c.feedback.first_reply_at = c.first_reply_at
+        add_update(c, "reply", "Replied to the traveler", member.full_name if member else "Team", c.first_reply_at)
         if age_h >= 30:
             share = 0.15 + rng.random() * 0.8 if rng.random() < 0.9 else 1.05 + rng.random() * 0.5
             solve_h = min(age_h - 0.5, c.deadline_hours * share)
@@ -232,5 +238,15 @@ def seed_cases(db: Session) -> int:
             c.resolved_at = t0 + timedelta(hours=solve_h)
             c.feedback.action_status, c.feedback.resolved_at = "resolved", c.resolved_at
             add_update(c, "solved", f"Solved in {dur(solve_h * 3600)}", "Team", c.resolved_at)
+    # everyday questions, follow-ups and complaints the team already answered (for the Team response report)
+    asks = ("inquiry", "follow_up_request", "complaint", "reported_problem", "request_assistance")
+    for fb in db.scalars(select(Feedback).where(Feedback.is_sample.is_(True), Feedback.first_reply_at.is_(None))).unique().all():
+        age_h = (now - aware(fb.created_at)).total_seconds() / 3600
+        if fb.case or not fb.intent or fb.intent.final_intent not in asks or age_h < 48 or rng.random() > 0.7:
+            continue
+        fb.first_reply_at = aware(fb.created_at) + timedelta(minutes=10 + rng.random() * 590)
+        fb.handled_by_id = rng.choice(members).id if members else None
+        if rng.random() < 0.6:
+            fb.action_status, fb.resolved_at = "resolved", fb.first_reply_at + timedelta(hours=0.5 + rng.random() * 47)
     db.commit()
     return n

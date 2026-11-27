@@ -14,6 +14,7 @@ class FetchedItem:
     rating: float | None = None
     source_url: str | None = None
     parent_reference: str | None = None
+    author_name: str | None = None  # display name; stored only when ANONYMIZE_AUTHORS=false (or for sample data)
 
 
 @dataclass

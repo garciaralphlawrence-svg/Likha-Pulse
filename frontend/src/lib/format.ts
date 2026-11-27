@@ -17,7 +17,7 @@ const PURPOSE_PHRASE: Record<string, string> = {
   request_assistance: "needs help with", general_feedback: "shared thoughts on", reported_problem: "reports a problem with",
   appreciation: "is thanking you for", follow_up_request: "is still waiting on",
 };
-export const PLATFORM_LABEL: Record<string, string> = { google_business: "Google Review", facebook_page: "Facebook Comment", messenger: "Messenger Chat", manual: "Added by staff" };
+export const PLATFORM_LABEL: Record<string, string> = { facebook_page: "Facebook Comment", messenger: "Messenger Chat", manual: "Added by staff", import: "Imported" };
 
 export const pretty = (s?: string | null) => (s ? s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : "—");
 export const label = (map: Record<string, string>, v?: string | null) => (v ? map[v] ?? pretty(v) : "—");

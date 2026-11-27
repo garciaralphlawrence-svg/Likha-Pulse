@@ -1,7 +1,6 @@
 # Likha Pulse — AI Sentiment Analysis & Feedback Intelligence
 
-Likha Pulse collects comments, reviews and messages from Google Business Profile, Facebook Page
-comments and Messenger. It analyzes each one for **sentiment, emotion, intent, topic, sarcasm and urgency**
+Likha Pulse collects Facebook Page comments and Messenger chats (plus past feedback imported from Excel or CSV). It analyzes each one for **sentiment, emotion, intent, topic, sarcasm and urgency**
 in English, Filipino and Taglish, and turns the results into dashboards, priority queues, AI insights
 and PDF/Excel/CSV reports for management.
 
@@ -29,11 +28,23 @@ and PDF/Excel/CSV reports for management.
 - **Priority detection**: separate from sentiment, e.g. safety/health terms are *critical* even in a neutral question.
 - **Human-in-the-loop**: reviewers correct sentiment, emotion, intent or priority; the original AI prediction,
   correction, reviewer and timestamp are kept. Low-confidence and possible-sarcasm items are queued for review.
-- **Integrations**: separate modules using official APIs only. Each shows *Not connected* until real credentials
+- **Integrations**: Facebook Page comments and Messenger through Meta's official Graph API only. Each shows *Not connected* until real credentials
   are configured. Demonstration data is always flagged as sample data.
 - **Notifications**: critical/high feedback, negative spikes, repeated complaints and unresolved items,
   de-duplicated, in-app (and optional email).
 - **Reports**: 8 report types in PDF, Excel and CSV.
+- **Team tools**:
+  - *Client history*: every message from the same client in one view, with feelings over time and open cases.
+  - *Suggested replies*: ready replies in English and Taglish per situation (delays, refunds, lost passport, booking
+    confirmation, thank-you…). Shown on each message with a Copy button; the team can edit, add and delete them.
+    Nothing is ever sent automatically.
+  - *Keyword watch*: the owner picks words (refund, scam, cancel, a destination). Matching messages are flagged and raise an alert.
+  - *Team response report*: who handled each message or case, first reply time and time to solve, per staff member
+    and per month, with charts and CSV export.
+- **Weekly report**: emailed to the owner every Monday 8:00 AM (Philippine time) when SMTP is set; otherwise it is only logged.
+  The app shows a preview and the on/off and recipient settings.
+- **Import past feedback**: Excel (.xlsx) or CSV with column mapping (date, client name, message, channel), preview,
+  then import. Every row runs through the AI engine and is saved as history (counts in trends, opens no cases or alerts).
 - **Administration**: Super Admin / Admin / Analyst / Viewer roles, user management, settings and audit logs.
 
 ## Quick start (local)
@@ -72,8 +83,8 @@ Or run everything with Docker: `docker compose up --build` (after creating `back
 
 - The built-in engine is rule-based. It handles common English/Filipino/Taglish patterns well, but subtle sarcasm
   and context still need the human review queue, or the optional Claude engine.
-- Platform data is only collected after the business authorizes access (Google Business Profile owner/manager;
-  Meta Page admin with app permissions approved through Meta App Review). The system never scrapes or bypasses restrictions.
+- Platform data is only collected after the business authorizes access (Meta Page admin with app permissions
+  approved through Meta App Review). The system never scrapes or bypasses restrictions.
 
 ---
 Built by **Likha Studio**.

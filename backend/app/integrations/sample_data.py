@@ -12,8 +12,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 T = json.loads((Path(__file__).parent / "sample_templates.json").read_text(encoding="utf-8"))
-PLATFORM_WEIGHTS = {"google_business": 0.38, "facebook_page": 0.37, "messenger": 0.25}
-COMPLAINT_HINTS = ("tagal", "wala pa", "seen", "update", "follow up", "refund", "sumasagot", "late", "pila")
+PLATFORM_WEIGHTS = {"facebook_page": 0.6, "messenger": 0.4}
+COMPLAINT_HINTS = ("tagal", "wala pa", "seen", "update", "follow up", "refund", "sumasagot", "late", "pila", "rude", "cancelled",
+                   "charged", "broken", "unsafe", "error", "rushed", "overpriced")
+CLIENTS = 150  # sample travelers, so most of them have several messages (client history)
 
 
 def generate(days: int = 240, seed: int = 13) -> list[dict]:
@@ -29,13 +31,14 @@ def generate(days: int = 240, seed: int = 13) -> list[dict]:
             platform = rng.choices(list(PLATFORM_WEIGHTS), weights=list(PLATFORM_WEIGHTS.values()))[0]
             pool = T[platform]
             if recent:
-                pool = pool + [t for t in pool if t[1] in (1, 2) or any(w in t[0].lower() for w in COMPLAINT_HINTS)]
+                pool = pool + [t for t in pool if any(w in t[0].lower() for w in COMPLAINT_HINTS)]
             text, rating = rng.choice(pool)
             text = text.replace("{svc}", rng.choice(T["services"])).replace("{staff}", rng.choice(T["staff"])).replace("{branch}", rng.choice(T["branches"]))
             n += 1
+            client = rng.randint(1, CLIENTS)
             out.append({
                 "platform": platform, "external_id": f"sample-{platform}-{n}", "content": text, "rating": rating,
-                "author": f"sample-customer-{rng.randint(1, 400)}",
+                "author": f"sample-customer-{client}", "author_name": f"Sample traveler {client:03d}",
                 "created_at": min(day + timedelta(hours=rng.randint(8, 21), minutes=rng.randint(0, 59)), now - timedelta(minutes=rng.randint(5, 90))),
             })
     return out

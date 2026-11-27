@@ -27,9 +27,6 @@ class Settings(BaseSettings):
     claude_model: str = "claude-opus-5-5"
 
     # Optional platform credentials (official APIs only)
-    google_business_access_token: str = ""
-    google_business_account_id: str = ""
-    google_business_location_id: str = ""
     meta_page_id: str = ""
     meta_page_access_token: str = ""
     meta_graph_version: str = "v21.0"
@@ -40,6 +37,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
+    smtp_tls: bool = True
 
     anonymize_authors: bool = True
     author_hash_salt: str = "change-me"

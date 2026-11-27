@@ -1,4 +1,5 @@
 """Dashboard, insights, reports, integrations, notifications, users, settings and audit endpoints."""
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -18,9 +19,12 @@ from app.models import AIInsight, AuditLog, Feedback, GeneratedReport, Notificat
 from app.nlp.pipeline import claude_key
 from app.services import analytics, insights, reports
 from app.services.filters import FeedbackFilters
-from app.services.ingestion import seed_sample, sync_platform
+from app.services.ingestion import PLATFORM_NAMES, seed_sample, sync_platform
 from app.services.notifications import run_periodic_checks
 from app.services.settings_service import DEFAULTS, all_settings, set_setting
+from app.services.watch import clean_words
+
+EMAIL_RE = re.compile(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+")
 
 router = APIRouter(prefix="/api", tags=["management"])
 
@@ -109,11 +113,11 @@ def list_integrations(user: User = Depends(require("dashboard.view")), db: Sessi
     counts = dict(db.execute(select(Feedback.platform_id, func.count(Feedback.id)).group_by(Feedback.platform_id)).all())
     samples = dict(db.execute(select(Feedback.platform_id, func.count(Feedback.id)).where(Feedback.is_sample.is_(True))
                               .group_by(Feedback.platform_id)).all())
-    for p in db.scalars(select(Platform).order_by(Platform.id)):
+    for p in db.scalars(select(Platform).where(Platform.code.in_(list(PLATFORM_NAMES))).order_by(Platform.id)):
         integ = REGISTRY.get(p.code)
         st = integ.status() if integ else None
         out.append({"code": p.code, "name": p.name, "status": p.status if (st is None or st.connected) else "not_connected",
-                    "detail": p.status_detail or (st.detail if st else "Feedback added by staff."), "missing": st.missing if st else [],
+                    "detail": p.status_detail or (st.detail if st else "Past feedback imported from Excel or CSV." if p.code == "import" else "Feedback added by staff."), "missing": st.missing if st else [],
                     "required_env": integ.required_env if integ else [], "docs_url": integ.docs_url if integ else "",
                     "last_sync_at": p.last_sync_at.isoformat() if p.last_sync_at else None,
                     "feedback_count": counts.get(p.id, 0), "sample_count": samples.get(p.id, 0)})
@@ -269,6 +273,15 @@ def put_setting(key: str, value: dict, request: Request, user: User = Depends(re
             raise HTTPException(400, "moderate must be lower than high, both between 0 and 1")
     if key == "response_clock" and any(not isinstance(v, (int, float)) or v < 1 for v in value.values()):
         raise HTTPException(400, "Every response time must be at least 1.")
+    if key == "keyword_watch":
+        if not isinstance(value.get("words"), list):
+            raise HTTPException(400, "Send the watch words as a list.")
+        value = {"words": clean_words(value["words"])}
+    if key == "weekly_report":
+        emails = [x.strip() for x in str(value.get("recipients", "")).replace(";", ",").split(",") if x.strip()]
+        if any(not EMAIL_RE.fullmatch(x) for x in emails) or len(emails) > 10:
+            raise HTTPException(400, "Enter up to 10 valid email addresses, separated by commas.")
+        value = {"enabled": bool(value.get("enabled", True)), "recipients": ", ".join(emails)}
     if key == "ai_provider" and value.get("provider") == "claude" and not claude_key(db):
         raise HTTPException(400, "Set ANTHROPIC_API_KEY on the server before switching to Claude.")
     merged = set_setting(db, key, value)

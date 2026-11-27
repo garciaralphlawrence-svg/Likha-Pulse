@@ -57,7 +57,7 @@ class User(Base):
 class Platform(Base):
     __tablename__ = "platforms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    code: Mapped[str] = mapped_column(String(40), unique=True)  # google_business, facebook_page, messenger
+    code: Mapped[str] = mapped_column(String(40), unique=True)  # facebook_page, messenger, manual, import
     name: Mapped[str] = mapped_column(String(80))
     status: Mapped[str] = mapped_column(String(30), default="not_connected")  # connected | not_connected | error
     status_detail: Mapped[str] = mapped_column(Text, default="")
@@ -88,7 +88,7 @@ class Feedback(Base):
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     author_ref: Mapped[str] = mapped_column(String(80), default="anonymous")
     content: Mapped[str] = mapped_column(Text)
-    rating: Mapped[float | None] = mapped_column(Float, nullable=True)  # e.g. Google star rating
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True)  # optional star rating (manual entry or imported survey)
     language: Mapped[str] = mapped_column(String(20), default="unknown")
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
     is_sample: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -97,8 +97,14 @@ class Feedback(Base):
     review_status: Mapped[str] = mapped_column(String(30), default="unreviewed")  # unreviewed | pending_review | reviewed
     action_status: Mapped[str] = mapped_column(String(30), default="open")  # open | pending_action | resolved
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Team tools: client display name (only when names are kept), who handled the message and how fast
+    author_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    first_reply_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    handled_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_imported: Mapped[bool] = mapped_column(Boolean, default=False)
 
     platform: Mapped[Platform] = relationship(lazy="joined")
+    handled_by: Mapped["User | None"] = relationship(lazy="joined", foreign_keys=[handled_by_id])
     sentiment: Mapped["SentimentResult | None"] = relationship(back_populates="feedback", uselist=False, lazy="joined", cascade="all, delete-orphan")
     emotion: Mapped["EmotionResult | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
     intent: Mapped["IntentResult | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
@@ -193,6 +199,19 @@ class Case(Base):
     updates: Mapped[list] = mapped_column(JSON, default=list)  # [{at, by, kind, text}]
     feedback: Mapped[Feedback] = relationship(back_populates="case", lazy="joined")
     assignee: Mapped[User | None] = relationship(lazy="joined")
+
+
+class ReplyTemplate(Base):
+    """Suggested reply the team can copy (never sent automatically). Defaults come from services/reply_templates.json."""
+    __tablename__ = "reply_templates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    situation: Mapped[str] = mapped_column(String(30), index=True)  # thank_you | delay | refund | lost_passport | booking | ...
+    language: Mapped[str] = mapped_column(String(10), default="en")  # en | tl (Taglish)
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_by: Mapped[str] = mapped_column(String(120), default="Likha Pulse")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 
 class AIInsight(Base):

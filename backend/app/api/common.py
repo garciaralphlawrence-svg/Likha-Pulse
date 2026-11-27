@@ -4,6 +4,7 @@ from fastapi import Query
 
 from app.models import Feedback
 from app.services.filters import FeedbackFilters
+from app.services.watch import hits
 
 
 def _dt(v: str | None, end: bool = False) -> datetime | None:
@@ -28,10 +29,23 @@ def filters_dep(
                            search=search, include_sample=include_sample)
 
 
-def feedback_out(fb: Feedback, detail: bool = False) -> dict:
+def client_label(author_ref: str, author_name: str | None) -> str:
+    """What the team sees as the client's name. Without a stored name, a short stable code from the anonymized id."""
+    if author_name:
+        return author_name
+    if not author_ref or author_ref == "anonymous":
+        return "Unknown client"
+    return f"Client {author_ref[-4:].upper()}"
+
+
+def feedback_out(fb: Feedback, detail: bool = False, watch: list[str] | None = None) -> dict:
     s, e, i, p = fb.sentiment, fb.emotion, fb.intent, fb.priority
     out = {
         "id": fb.id, "platform": fb.platform.code, "platform_name": fb.platform.name, "author": fb.author_ref,
+        "client": client_label(fb.author_ref, fb.author_name), "is_imported": fb.is_imported,
+        "first_reply_at": fb.first_reply_at.isoformat() if fb.first_reply_at else None,
+        "handled_by": fb.handled_by.full_name if fb.handled_by else None,
+        "watch_hits": hits(fb.content, watch) if watch else [],
         "content": fb.content, "rating": fb.rating, "language": fb.language, "created_at": fb.created_at.isoformat(),
         "is_sample": fb.is_sample, "review_status": fb.review_status, "action_status": fb.action_status,
         "sentiment": s.final_label if s else None, "ai_sentiment": s.label if s else None, "score": s.score if s else None,

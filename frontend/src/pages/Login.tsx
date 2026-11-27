@@ -25,7 +25,7 @@ export default function Login() {
         <div className="relative max-w-lg">
           <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-gold-300"><Sparkles className="h-3.5 w-3.5" />AI that reads your customers</p>
           <h1 className="mt-4 font-display text-6xl font-semibold leading-[1.02] text-ivory-50">Know what every customer feels — without reading every message.</h1>
-          <p className="mt-6 text-lg leading-relaxed text-ivory-200/70">Google reviews, Facebook comments and Messenger chats, reviewed by AI in English, Tagalog and Taglish. You get a short briefing of what matters and what to do next.</p>
+          <p className="mt-6 text-lg leading-relaxed text-ivory-200/70">Facebook comments and Messenger chats, reviewed by AI in English, Tagalog and Taglish. You get a short briefing of what matters and what to do next.</p>
           <div className="mt-10 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-5 backdrop-blur">
             <p className="font-display text-xl italic text-ivory-100">“Okay naman ang service pero sobrang tagal ng reply.”</p>
             <p className="mt-3 text-sm text-gold-300">AI: Frustrated customer is complaining about response time.</p>

@@ -111,7 +111,7 @@ export default function Dashboard() {
       <div className="mb-7">
         <p className="eyebrow">Overview</p>
         <h1 className="font-display text-5xl font-semibold leading-tight text-ink-900">{greet}, {user?.full_name.split(" ")[0]}.</h1>
-        <p className="mt-2 text-[15px] text-ink-500">Here's what your customers are saying across Google, Facebook and Messenger.</p>
+        <p className="mt-2 text-[15px] text-ink-500">Here's what your travelers are saying on Facebook and Messenger.</p>
       </div>
       <FilterBar f={f} set={set} setF={setF} fields={["platform"]} />
       <ErrorBox error={error} />
@@ -133,13 +133,13 @@ export default function Dashboard() {
                 </li>
               ))}
             </ul>
-            {k.sample_count > 0 && <p className="relative mt-5 text-xs text-ivory-200/60">Showing sample messages for preview. Real messages appear once Google or Facebook is connected.</p>}
+            {k.sample_count > 0 && <p className="relative mt-5 text-xs text-ivory-200/60">Showing sample messages for preview. Real messages appear once your Facebook Page and Messenger are connected.</p>}
           </section>
 
           {can("feedback.view") && <ClockStrip />}
 
           <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Stat label="Messages" value={k.total.toLocaleString()} sub="comments, reviews & chats" />
+            <Stat label="Messages" value={k.total.toLocaleString()} sub="comments & chats" />
             <Stat label="Happy" value={`${k.positive_pct}%`} sub={`${k.positive} customers`} accent={SENT_COLORS.positive} />
             <Stat label="Unhappy" value={`${k.negative_pct}%`} sub={`${k.negative} customers`} accent={SENT_COLORS.negative} />
             <Stat label="Need attention" value={k.unresolved_high_priority} sub={k.unresolved_high_priority ? "waiting for a reply" : "all caught up"} accent={k.unresolved_high_priority ? "#a5844a" : undefined} />
@@ -199,7 +199,7 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={data.by_platform} layout="vertical" margin={{ left: 4 }}>
                     <XAxis type="number" hide /><YAxis type="category" dataKey="platform" tick={tick} width={110} axisLine={false} tickLine={false}
-                      tickFormatter={(v) => String(v).replace("Google Business Profile", "Google").replace("Facebook Page comments", "Facebook").replace("Facebook Messenger", "Messenger").replace("Manual entry", "Staff")} />
+                      tickFormatter={(v) => String(v).replace("Facebook Page comments", "Facebook").replace("Facebook Messenger", "Messenger").replace("Manual entry", "Staff").replace("Imported file", "Imported")} />
                     <Tooltip formatter={(v, n) => [v, ({ positive: "Happy", neutral: "Neutral", negative: "Unhappy" } as any)[String(n)]]} />
                     {(["positive", "neutral", "negative"] as const).map((s, i) => <Bar key={s} dataKey={s} stackId="p" fill={SENT_COLORS[s]} barSize={16} radius={i === 2 ? [0, 8, 8, 0] : 0} />)}
                   </BarChart>

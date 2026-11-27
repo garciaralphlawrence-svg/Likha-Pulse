@@ -1,7 +1,7 @@
 # Likha Pulse — Technical Architecture & Development Plan
 
-Likha Pulse is a feedback-intelligence platform. It collects comments, reviews and
-messages from connected platforms, analyzes each one with an NLP pipeline, and turns
+Likha Pulse is a feedback-intelligence platform. It collects Facebook Page comments and
+Messenger chats (and imported past feedback), analyzes each one with an NLP pipeline, and turns
 the results into dashboards, priority queues, insights and reports for management.
 
 ## 1. System overview
@@ -20,8 +20,8 @@ the results into dashboards, priority queues, insights and reports for managemen
 │ nlp/        pipeline ─┬─ RuleEngine  (free: English/Filipino/Taglish lexicon + rules)│
 │                       └─ ClaudeEngine (optional: Claude API, structured output)     │
 │ services/   ingestion (dedupe) · insights · reports (PDF/XLSX/CSV) · notifications  │
-│ integrations/ base · google_business · facebook_page · messenger · sample (labeled) │
-│ jobs/       APScheduler: platform sync · unresolved-feedback check · retention      │
+│ integrations/ base · facebook_page · messenger · sample (labeled)                   │
+│ jobs/       APScheduler: sync · alerts · retention · Monday weekly report          │
 └───────────────────────────────┬─────────────────────────────────────────────────────┘
                                 ▼
                      PostgreSQL (SQLite allowed for local dev/tests) · Alembic migrations
@@ -45,7 +45,8 @@ the results into dashboards, priority queues, insights and reports for managemen
 |---|---|
 | `roles`, `permissions`, `role_permissions` | RBAC: SUPER_ADMIN, ADMIN, ANALYST, VIEWER |
 | `users` | bcrypt password hash, role, active flag, reset token hash/expiry |
-| `platforms` | Google, Facebook, Messenger (+ future), status, last sync |
+| `platforms` | Facebook comments, Messenger, manual entry, imported file; status, last sync |
+| `reply_templates` | Suggested replies (situation, language en/tl, title, body); defaults from `services/reply_templates.json` |
 | `platform_accounts` | Connected page/location per platform; credentials referenced by env var name, never stored in plain text |
 | `feedback` | Original content, platform, external reference ID, author (anonymized hash), source URL, created/collected timestamps, `content_hash` for duplicate detection, `is_sample`, review status, resolution status |
 | `sentiment_results` | label, score, confidence, engine, model version, reason, sarcasm flag |
@@ -79,7 +80,7 @@ With Claude enabled, steps 2–6 are done in one structured-output call per mess
 - Passwords hashed with bcrypt; JWT access tokens (short-lived) signed with `JWT_SECRET` from the environment.
 - Role-based permission checks on every route; Super Admin seeded from environment variables on first start.
 - Password reset via single-use hashed token (emailed when SMTP is configured; otherwise shown to Super Admin in logs only in development).
-- All secrets (DB URL, JWT secret, Claude key, Meta/Google tokens) come from environment variables; `.env.example` lists them.
+- All secrets (DB URL, JWT secret, Claude key, Meta tokens, SMTP) come from environment variables; `.env.example` lists them.
 - Audit log on login, user management, settings changes, reviews, report generation and integration changes.
 - Author identifiers are stored as salted hashes by default (`ANONYMIZE_AUTHORS=true`).
 

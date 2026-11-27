@@ -74,7 +74,8 @@ def test_settings_validation_and_claude_requires_key(client, admin_headers):
 
 def test_integrations_report_not_connected(client, admin_headers):
     items = {i["code"]: i for i in client.get("/api/integrations", headers=admin_headers).json()}
-    assert items["google_business"]["status"] == "not_connected"
+    assert "google_business" not in items and set(items) == {"facebook_page", "messenger", "manual", "import"}
+    assert items["facebook_page"]["status"] == "not_connected"
     assert items["facebook_page"]["missing"]
     r = client.post("/api/integrations/messenger/sync", headers=admin_headers).json()
     assert r["status"] == "not_connected" and r["added"] == 0

@@ -10,6 +10,10 @@ DEFAULTS: dict[str, dict] = {
     "alerts": {"negative_spike_pct": 30, "repeated_complaint_count": 3, "unresolved_days": 3, "email_enabled": False},
     "retention": {"feedback_days": 730, "audit_days": 1095},
     "response_clock": {"urgent_hours": 24, "important_hours": 48, "urgent_reply_minutes": 60, "important_reply_minutes": 240},
+    # Keyword watch: messages containing these words are flagged and raise an alert
+    "keyword_watch": {"words": ["refund", "scam", "cancel", "estafa", "Boracay"]},
+    # Weekly report: emailed every Monday morning (8 AM Philippine time). Empty recipients = every Owner account.
+    "weekly_report": {"enabled": True, "recipients": "", "last_sent_week": ""},
 }
 
 

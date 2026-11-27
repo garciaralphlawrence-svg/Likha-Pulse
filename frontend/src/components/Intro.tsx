@@ -92,7 +92,7 @@ export default function Intro() {
           </span>
         </h1>
         <p className="mt-7 max-w-xl text-[15px] leading-relaxed text-ivory-200/70 sm:text-lg" style={{ animation: "fadeUp 1s cubic-bezier(.2,.7,.2,1) 3.3s both" }}>
-          Every review, comment and chat is read with care, so you always know how your customers truly feel.
+          Every comment and chat is read with care, so you always know how your customers truly feel.
         </p>
         <button onClick={close} className="btn mt-9 border border-gold-300/50 bg-gold-500/10 px-7 py-3 text-ivory-50 hover:bg-gold-500/25" style={{ animation: "fadeUp .9s cubic-bezier(.2,.7,.2,1) 3.9s both" }}>
           Enter

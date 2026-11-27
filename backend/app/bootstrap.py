@@ -8,7 +8,8 @@ from app.core.config import get_settings
 from app.core.rbac import PERMISSIONS, ROLES
 from app.core.security import hash_password
 from app.models import Feedback, Permission, Role, User
-from app.services.ingestion import ensure_platforms, seed_sample
+from app.services.ingestion import ensure_platforms, retire_google, seed_sample
+from app.services.replies import seed_defaults
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +47,9 @@ def ensure_superadmin(db: Session) -> None:
 def bootstrap(db: Session) -> None:
     ensure_rbac(db)
     ensure_platforms(db)
+    if moved := retire_google(db):
+        log.info("Google reviews were retired; %s real review(s) kept as imported history.", moved)
+    seed_defaults(db)
     ensure_superadmin(db)
     if get_settings().seed_sample_data and not db.scalar(select(func.count(Feedback.id))):
         n = seed_sample(db)

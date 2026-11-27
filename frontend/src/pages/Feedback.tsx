@@ -24,7 +24,7 @@ export default function Feedback() {
 
   return (
     <>
-      <PageHeader eyebrow="Inbox" title="Comments & chats" description="Every review, comment and chat — already read by the AI. Tap a message to see what the customer feels and what to do next."
+      <PageHeader eyebrow="Inbox" title="Comments & chats" description="Every Facebook comment and Messenger chat — already read by the AI. Tap a message to see what the customer feels and what to do next."
         actions={can("feedback.manage") && <button className="btn-secondary" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />Add a message</button>} />
       <FilterBar f={f} set={set} setF={setF} fields={["search", "platform", "sentiment", "emotion", "intent", "topic", "review", "action"]} />
       <ErrorBox error={error} />
@@ -45,7 +45,7 @@ function AddFeedback({ open, onClose, onAdded }: { open: boolean; onClose: () =>
   };
   return (
     <Modal open={open} onClose={onClose} title="Add a message">
-      <p className="mb-4 text-sm text-ink-400">For feedback from calls, walk-ins or email. The AI reviews it right away.</p>
+      <p className="mb-4 text-sm text-ink-400">For feedback from calls, walk-ins or email. The AI reviews it right away. To bring in many past messages at once, use Import Past Feedback.</p>
       <label className="block"><span className="label">What did the customer say?</span><textarea className="input min-h-[110px]" value={content} onChange={(e) => setContent(e.target.value)} /></label>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label><span className="label">Customer name (optional)</span><input className="input" value={author} onChange={(e) => setAuthor(e.target.value)} /></label>

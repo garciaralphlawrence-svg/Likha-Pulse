@@ -8,13 +8,14 @@ export interface FeedbackItem {
   created_at: string; is_sample: boolean; review_status: string; action_status: string; sentiment: Sentiment; ai_sentiment: Sentiment;
   score: number; confidence: number; possible_sarcasm: boolean; emotion: string; intent: string; topics: string[]; topic: string;
   priority: Priority; engine: string;
+  client: string; is_imported: boolean; first_reply_at: string | null; handled_by: string | null; watch_hits: string[];
 }
 export interface ReviewEntry { field: string; original: string; corrected: string; note: string; reviewer: string; at: string }
 export interface FeedbackDetail extends FeedbackItem {
   reason: string; recommended_action: string; intent_reason: string; priority_reason: string;
   ai: { sentiment: string; emotion: string; intent: string; priority: string }; emotion_scores: Record<string, number>;
   model_version: string; analyzed_at: string | null; source_url: string | null; external_id: string | null; parent_reference: string | null;
-  collected_at: string; reviews: ReviewEntry[];
+  collected_at: string; reviews: ReviewEntry[]; client_messages: number;
 }
 export interface Paged<T> { total: number; page: number; page_size: number; items: T[] }
 
@@ -62,7 +63,37 @@ export interface SettingsData {
   alerts: { negative_spike_pct: number; repeated_complaint_count: number; unresolved_days: number; email_enabled: boolean };
   retention: { feedback_days: number; audit_days: number };
   response_clock?: { urgent_hours: number; important_hours: number; urgent_reply_minutes: number; important_reply_minutes: number };
+  keyword_watch?: { words: string[] };
+  weekly_report?: { enabled: boolean; recipients: string; last_sent_week?: string };
 }
+
+// ---------- team tools ----------
+export interface ClientHistory {
+  ref: string; name: string; total: number; first_seen: string; last_seen: string; moods: { positive: number; neutral: number; negative: number };
+  avg_score: number; platforms: Record<string, number>; verdict: string; feelings: { at: string; score: number; sentiment: Sentiment }[];
+  open_cases: CaseInfo[]; timeline: FeedbackItem[];
+}
+export interface ReplyTemplate { id: number; situation: string; situation_label: string; language: "en" | "tl"; title: string; body: string; is_default: boolean; updated_by: string; updated_at: string | null }
+export interface ReplyLibrary { situations: Record<string, string>; languages: Record<string, string>; items: ReplyTemplate[] }
+export interface Suggestion { situation: string; situation_label: string; templates: ReplyTemplate[] }
+export type TemplateInput = Pick<ReplyTemplate, "situation" | "language" | "title" | "body">;
+export interface WatchResult { words: string[]; days: number; total: number; counts: { word: string; count: number }[]; items: FeedbackItem[] }
+export interface TeamStat { name: string; handled: number; replied: number; solved: number; avg_first_reply_minutes: number | null; avg_resolution_minutes: number | null }
+export interface TeamRow {
+  id: string; content: string; platform: string; platform_name: string; is_sample: boolean; handler: string; started_at: string; month: string;
+  is_case: boolean; priority: Priority; first_reply_minutes: number | null; resolution_minutes: number | null; status: "solved" | "replied" | "waiting";
+}
+export interface TeamReport { period: { from: string; to: string }; months: string[]; team: string[]; totals: Omit<TeamStat, "name">; staff: TeamStat[]; by_month: (TeamStat & { month: string })[]; items: TeamRow[] }
+export interface WeeklyReport {
+  subject: string; period: { from: string; to: string }; verdict: string;
+  kpis: { total: number; positive_pct: number; negative_pct: number; prev_negative_pct: number; prev_total: number; urgent_open: number; sample_count: number };
+  clock: { open: number; overdue: number; solved: number; on_time_pct: number | null };
+  top_complaints: { topic: string; count: number }[]; most_appreciated: { topic: string; count: number }[];
+  watch: { word: string; count: number }[]; team: { name: string; handled: number; avg_first_reply_minutes: number | null }[]; actions: string[];
+  enabled: boolean; recipients: string[]; recipients_setting: string; email_ready: boolean; last_sent_week: string; schedule: string;
+}
+export interface ImportRow { date: string; client: string; message: string; channel: string }
+export interface ImportResult { total: number; imported: number; duplicates: number; skipped: { row: number; reason: string }[]; skipped_count: number; by_channel: Record<string, number> }
 
 export interface CaseUpdate { at: string; by: string; kind: "opened" | "assigned" | "reply" | "step" | "note" | "escalated" | "solved" | "reopened" | "traveling"; text: string }
 export interface CaseInfo {
@@ -115,4 +146,17 @@ export interface Api {
   audit(action?: string, page?: number): Promise<AuditRow[]>;
   cases(view: "open" | "solved" | "all"): Promise<{ items: CaseInfo[]; stats: CaseStats; team: string[] }>;
   caseAction(id: string, action: CaseAction): Promise<CaseInfo>;
+  // team tools
+  client(ref: string): Promise<ClientHistory>;
+  replyTemplates(): Promise<ReplyLibrary>;
+  saveTemplate(t: TemplateInput, id?: number): Promise<ReplyTemplate>;
+  deleteTemplate(id: number): Promise<void>;
+  suggestions(feedbackId: string): Promise<Suggestion>;
+  markReplied(feedbackId: string): Promise<FeedbackDetail>;
+  keywordWatch(days: number): Promise<WatchResult>;
+  teamReport(months: number): Promise<TeamReport>;
+  downloadTeamReport(months: number): Promise<void>;
+  weeklyReport(): Promise<WeeklyReport>;
+  sendWeeklyReport(): Promise<{ sent: boolean; detail: string }>;
+  importRows(fileName: string, rows: ImportRow[]): Promise<ImportResult>;
 }

@@ -6,8 +6,8 @@ import { FEELING, PURPOSE, isoDay, presetRange } from "../lib/format";
 import { Select } from "./ui";
 
 export const PLATFORMS = [
-  { value: "google_business", label: "Google Reviews" }, { value: "facebook_page", label: "Facebook Comments" },
-  { value: "messenger", label: "Messenger Chats" }, { value: "manual", label: "Added by staff" },
+  { value: "facebook_page", label: "Facebook Comments" }, { value: "messenger", label: "Messenger Chats" },
+  { value: "manual", label: "Added by staff" }, { value: "import", label: "Imported" },
 ];
 const PRESETS = [{ d: 7, l: "This week" }, { d: 30, l: "This month" }, { d: 90, l: "3 months" }, { d: 365, l: "This year" }];
 

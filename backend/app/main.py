@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, feedback, management
 from app.api import cases as cases_api
+from app.api import team_tools
 from app.core.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.bootstrap import bootstrap
@@ -20,6 +21,8 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Set a strong JWT_SECRET before running in production.")
     if settings.database_url.startswith("sqlite"):
         Base.metadata.create_all(engine)  # dev convenience; PostgreSQL uses Alembic migrations
+        from app.db import add_missing_sqlite_columns
+        add_missing_sqlite_columns()
     with SessionLocal() as db:
         bootstrap(db)
     sched = None
@@ -51,6 +54,7 @@ app.include_router(auth.router)
 app.include_router(feedback.router)
 app.include_router(management.router)
 app.include_router(cases_api.router)
+app.include_router(team_tools.router)
 
 
 @app.get("/api/health", tags=["system"])

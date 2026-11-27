@@ -1,4 +1,5 @@
-import { CheckCircle2, Facebook, MessageCircle, PenLine, RefreshCw, Trash2 } from "lucide-react";
+import { CheckCircle2, Facebook, FileUp, MessageCircle, PenLine, RefreshCw, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { api } from "../api";
 import { Card, ErrorBox, PageHeader, Spinner } from "../components/ui";
@@ -7,10 +8,10 @@ import { ago } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 
 const META: Record<string, { name: string; what: string; icon: JSX.Element; bg: string }> = {
-  google_business: { name: "Google Reviews", what: "Reviews and star ratings from your Google Business Profile.", icon: <span className="font-display text-xl font-bold">G</span>, bg: "bg-white text-ink-900 ring-1 ring-ivory-300" },
   facebook_page: { name: "Facebook Comments", what: "Comments on your Facebook Page posts.", icon: <Facebook className="h-5 w-5" />, bg: "bg-ink-900 text-gold-300" },
   messenger: { name: "Messenger Chats", what: "Messages customers send to your Facebook Page.", icon: <MessageCircle className="h-5 w-5" />, bg: "bg-gold-500 text-white" },
   manual: { name: "Added by staff", what: "Feedback your team types in from calls, walk-ins or email.", icon: <PenLine className="h-5 w-5" />, bg: "bg-ivory-200 text-ink-700" },
+  import: { name: "Imported past feedback", what: "Old surveys and past messages brought in from Excel or CSV.", icon: <FileUp className="h-5 w-5" />, bg: "bg-ivory-100 text-gold-700 ring-1 ring-ivory-300" },
 };
 
 export default function Integrations() {
@@ -26,7 +27,7 @@ export default function Integrations() {
   const samples = data?.reduce((s, i) => s + i.sample_count, 0) ?? 0;
   return (
     <>
-      <PageHeader eyebrow="Connections" title="Where your messages come from" description="Once connected, new reviews, comments and chats arrive here automatically and the AI reads each one." />
+      <PageHeader eyebrow="Connections" title="Where your messages come from" description="Once connected, new Facebook comments and Messenger chats arrive here automatically and the AI reads each one." />
       <ErrorBox error={error || err} />
       {msg && <div className="mb-4 rounded-2xl border border-ivory-300 bg-white px-4 py-3 text-sm text-ink-700">{msg}</div>}
       {loading && !data ? <Spinner /> : (
@@ -50,7 +51,8 @@ export default function Integrations() {
                 </div>
                 <div className="mt-5 flex flex-1 items-end justify-between gap-3 border-t border-ivory-200 pt-4 text-sm">
                   <span className="text-ink-400">{i.feedback_count} messages{i.last_sync_at ? ` · updated ${ago(i.last_sync_at)}` : ""}</span>
-                  {i.code !== "manual" && (connected
+                  {i.code === "import" && can("feedback.manage") && <Link to="/import" className="btn-secondary"><FileUp className="h-4 w-4" />Import a file</Link>}
+                  {i.code !== "manual" && i.code !== "import" && (connected
                     ? can("integrations.manage") && <button className="btn-secondary" disabled={busy === i.code} onClick={() => run(i.code, () => api.sync(i.code), (r) => `${m.name}: ${r.added ?? 0} new message(s).`)}><RefreshCw className={`h-4 w-4 ${busy === i.code ? "animate-spin" : ""}`} />Check for new</button>
                     : <span className="text-xs text-gold-700">Likha Studio will connect this for you</span>)}
                 </div>

@@ -41,13 +41,18 @@ Host `dist/` on any static host (Cloudflare Pages, Netlify, Vercel, Nginx). Rout
 
 | Platform | Requirements | Environment variables |
 |---|---|---|
-| Google Business Profile reviews | Business owner/manager account; Google Cloud project with the Business Profile APIs enabled (access is granted by Google on request); OAuth token with `https://www.googleapis.com/auth/business.manage` | `GOOGLE_BUSINESS_ACCESS_TOKEN`, `GOOGLE_BUSINESS_ACCOUNT_ID`, `GOOGLE_BUSINESS_LOCATION_ID` |
 | Facebook Page comments | Page admin; Meta app with `pages_read_engagement` and `pages_read_user_content` approved through App Review; long-lived Page access token | `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN` |
 | Messenger | Same Meta app plus `pages_messaging` approval | same as above |
 
 After setting the variables, restart the API, open **Platform Integrations** and click **Sync now**. The scheduler
 then syncs every 30 minutes. OAuth access tokens expire, so use a refresh process or long-lived Page tokens and
 update the variables when they change. If a sync fails, the integration shows **Error** with the platform's message.
+
+**Weekly report email**: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (and `SMTP_TLS`). The job runs every
+Monday 00:00 UTC (8:00 AM Philippine time). Without SMTP nothing is sent; the job only logs.
+
+**Upgrading an existing database**: run `alembic upgrade head`. Migration `c4e8a2f17d30` adds the team-tool columns and
+retires Google reviews (sample Google rows are deleted; any real ones are kept as imported history).
 
 ## 5. Optional Claude engine
 

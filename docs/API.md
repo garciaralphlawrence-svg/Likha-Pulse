@@ -13,7 +13,7 @@ Used by `/api/feedback`, `/api/dashboard`, `/api/insights/generate` and `/api/re
 | Param | Example | Notes |
 |---|---|---|
 | `date_from`, `date_to` | `2026-11-01` | Dashboard/insights default to the last 30 days |
-| `platform` | `google_business`, `facebook_page`, `messenger`, `manual` | |
+| `platform` | `facebook_page`, `messenger`, `manual`, `import` | |
 | `sentiment` | `positive` / `neutral` / `negative` | Uses the human-corrected value when one exists |
 | `priority` | `critical,high` | Comma-separated |
 | `emotion`, `intent`, `topic` | `frustration`, `complaint`, `Response Time` | `intent` accepts a comma list |
@@ -51,10 +51,20 @@ Used by `/api/feedback`, `/api/dashboard`, `/api/insights/generate` and `/api/re
 | `GET /api/notifications` | signed in | Latest 50 alerts with read state |
 | `POST /api/notifications/{id}/read`, `/read-all`, `/check` | signed in / settings.manage | Mark read / run alert rules now |
 | `GET/POST /api/users`, `PATCH /api/users/{id}`, `GET /api/roles` | users.manage | User management |
-| `GET /api/settings`, `PUT /api/settings/{key}` | settings.manage | `sentiment_thresholds`, `confidence_thresholds`, `ai_provider`, `alerts`, `retention` |
+| `GET /api/settings`, `PUT /api/settings/{key}` | settings.manage | `sentiment_thresholds`, `confidence_thresholds`, `ai_provider`, `alerts`, `retention`, `response_clock`, `keyword_watch` (`{"words": [...]}`), `weekly_report` (`{"enabled", "recipients"}`) |
 | `GET /api/audit` | audit.view | `action`, `page` |
 | `GET /api/cases` | feedback.view | Response Clock cases. `view` = `open` (most urgent first), `solved` or `all`. Returns `items`, `stats` and `team` |
 | `POST /api/cases/{id}/actions` | feedback.manage | `{"kind": "assign" \| "reply" \| "step" \| "note" \| "solve" \| "reopen" \| "traveling", "assignee"?, "text"?, "index"?, "value"?}` |
+| `GET /api/clients/{author}` | feedback.view | Client history: every message from one client, moods, feelings over time, open cases |
+| `GET /api/reply-templates`, `POST`, `PUT/DELETE /api/reply-templates/{id}` | feedback.view / feedback.manage | Suggested reply library |
+| `GET /api/feedback/{id}/replies` | feedback.view | Best-fit replies (English + Taglish) for one message |
+| `POST /api/feedback/{id}/replied` | feedback.manage | Record the first reply time and who handled it |
+| `GET /api/keyword-watch?days=90` | feedback.view | Watch words, counts per word and matching messages |
+| `GET /api/team-report?months=6`, `GET /api/team-report/csv` | reports.view | Who handled what and how fast, per staff and month |
+| `GET /api/weekly-report`, `POST /api/weekly-report/send` | reports.view / settings.manage | Preview (+ html) and send now |
+| `POST /api/import/parse` | feedback.manage | `{"file_name", "content_base64"}` → columns, rows, guessed mapping (.xlsx or .csv) |
+| `POST /api/import` | feedback.manage | `{"file_name", "rows": [{"date","client","message","channel"}]}` → imported / duplicates / skipped |
+| `GET /api/import/template.csv` | feedback.view | Sample import file |
 | `GET /api/health` | public | Liveness check |
 
 ## Example

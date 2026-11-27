@@ -1,7 +1,5 @@
 """Official-API integrations. Each reports `not_connected` until real, authorized credentials are set.
 
-- Google Business Profile reviews: My Business API v4 `accounts/{a}/locations/{l}/reviews` (OAuth access token
-  with the business.manage scope, for a profile you own or manage).
 - Facebook Page comments: Graph API `/{page-id}/posts` with nested comments (Page access token with
   pages_read_engagement / pages_read_user_content, approved through Meta App Review).
 - Messenger: Graph API `/{page-id}/conversations?platform=messenger` (Page access token with pages_messaging,
@@ -15,9 +13,6 @@ import httpx
 
 from app.core.config import get_settings
 from app.integrations.base import BaseIntegration, FetchedItem, IntegrationError, IntegrationStatus
-
-STARS = {"ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5}
-
 
 def _parse_time(value: str | None) -> datetime:
     if not value:
@@ -43,45 +38,6 @@ def _get(url: str, params: dict, headers: dict | None = None) -> dict:
             msg = r.text[:200]
         raise IntegrationError(f"HTTP {r.status_code}: {msg}")
     return r.json()
-
-
-class GoogleBusinessIntegration(BaseIntegration):
-    code = "google_business"
-    name = "Google Business Profile"
-    docs_url = "https://developers.google.com/my-business/content/review-data"
-    required_env = ["GOOGLE_BUSINESS_ACCESS_TOKEN", "GOOGLE_BUSINESS_ACCOUNT_ID", "GOOGLE_BUSINESS_LOCATION_ID"]
-
-    def status(self) -> IntegrationStatus:
-        s = get_settings()
-        missing = [n for n, v in zip(self.required_env, [s.google_business_access_token, s.google_business_account_id,
-                                                          s.google_business_location_id]) if not v]
-        if missing:
-            return IntegrationStatus(False, "Not connected. Add the Google Business Profile credentials to the server environment.", missing)
-        return IntegrationStatus(True, "Credentials configured. Run a sync to verify access.")
-
-    def fetch(self, since=None) -> list[FetchedItem]:
-        s = get_settings()
-        if not self.status().connected:
-            raise IntegrationError("Google Business Profile is not connected.")
-        url = f"https://mybusiness.googleapis.com/v4/accounts/{s.google_business_account_id}/locations/{s.google_business_location_id}/reviews"
-        items, token = [], None
-        for _ in range(10):  # up to 10 pages
-            params = {"pageSize": 50, **({"pageToken": token} if token else {})}
-            data = _get(url, params, {"Authorization": f"Bearer {s.google_business_access_token}"})
-            for rv in data.get("reviews", []):
-                created = _parse_time(rv.get("createTime"))
-                if since and created <= since:
-                    continue
-                text = (rv.get("comment") or "").strip()
-                if not text:
-                    continue  # rating-only reviews have no text to analyze
-                items.append(FetchedItem(external_id=rv.get("reviewId") or rv.get("name"), content=text, created_at=created,
-                                         author=(rv.get("reviewer") or {}).get("displayName"),
-                                         rating=STARS.get(rv.get("starRating", ""), None)))
-            token = data.get("nextPageToken")
-            if not token:
-                break
-        return items
 
 
 class FacebookPageIntegration(BaseIntegration):
@@ -113,7 +69,7 @@ class FacebookPageIntegration(BaseIntegration):
                 if (c.get("from") or {}).get("id") == s.meta_page_id or not (c.get("message") or "").strip():
                     continue
                 items.append(FetchedItem(external_id=c["id"], content=c["message"].strip(), created_at=_parse_time(c.get("created_time")),
-                                         author=(c.get("from") or {}).get("id"), source_url=c.get("permalink_url") or post.get("permalink_url"),
+                                         author=(c.get("from") or {}).get("id"), author_name=(c.get("from") or {}).get("name"), source_url=c.get("permalink_url") or post.get("permalink_url"),
                                          parent_reference=post.get("id")))
         return items
 
@@ -148,9 +104,9 @@ class MessengerIntegration(BaseIntegration):
                 if since and created <= since:
                     continue
                 items.append(FetchedItem(external_id=m["id"], content=m["message"].strip(), created_at=created,
-                                         author=(m.get("from") or {}).get("id"), parent_reference=conv.get("id"),
+                                         author=(m.get("from") or {}).get("id"), author_name=(m.get("from") or {}).get("name"), parent_reference=conv.get("id"),
                                          source_url=("https://www.facebook.com" + conv["link"]) if conv.get("link") else None))
         return items
 
 
-REGISTRY: dict[str, BaseIntegration] = {i.code: i for i in (GoogleBusinessIntegration(), FacebookPageIntegration(), MessengerIntegration())}
+REGISTRY: dict[str, BaseIntegration] = {i.code: i for i in (FacebookPageIntegration(), MessengerIntegration())}

@@ -1,10 +1,12 @@
-import { Check, CheckCircle2, ExternalLink, PenLine, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, ExternalLink, Eye, PenLine, Reply, Sparkles, Star, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { FeedbackDetail } from "../api/types";
 import { EMOTIONS, INTENTS } from "../demo/engine";
 import { useAuth } from "../lib/auth";
 import { FEELING, MOOD, PLATFORM_LABEL, PURPOSE, SENT_COLORS, URGENCY, fmtDate, headline, label, sureness } from "../lib/format";
+import SuggestedReplies from "./SuggestedReplies";
 import { Drawer, ErrorBox, PriorityBadge, SampleTag, Select, Spinner, Tag } from "./ui";
 
 /** Turns the engine's explanation into a sentence a manager can read in two seconds. */
@@ -52,7 +54,17 @@ export default function FeedbackDrawer({ id, onClose, onChanged }: { id: string 
               <span className="font-medium text-ink-700">{PLATFORM_LABEL[fb.platform] ?? fb.platform_name}</span><span>·</span><span>{fmtDate(fb.created_at)}</span>
               {fb.rating && <span className="flex text-gold-500">{Array.from({ length: Math.round(fb.rating) }, (_, i) => <Star key={i} className="h-3.5 w-3.5 fill-current" />)}</span>}
               {fb.is_sample && <SampleTag />}
+              {fb.is_imported && <Tag>Imported</Tag>}
             </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="inline-flex items-center gap-1.5 font-medium text-ink-800"><UserRound className="h-4 w-4 text-gold-600" />{fb.client}</span>
+              {fb.author !== "anonymous" && (
+                <Link to={`/clients/${encodeURIComponent(fb.author)}`} onClick={onClose} className="inline-flex items-center gap-1 text-gold-700 hover:underline">
+                  {fb.client_messages > 1 ? `See all ${fb.client_messages} messages from this client` : "Client history"}<ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+            </div>
+            {fb.watch_hits.length > 0 && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-800"><Eye className="h-3.5 w-3.5" />Watch word: {fb.watch_hits.join(", ")}</p>}
             <blockquote style={{ animation: "fadeUp .7s cubic-bezier(.2,.7,.2,1) both" }} className="mt-3 font-display text-[26px] leading-snug text-ink-900">“{fb.content}”</blockquote>
           </div>
 
@@ -86,8 +98,12 @@ export default function FeedbackDrawer({ id, onClose, onChanged }: { id: string 
               <button className="btn-secondary" disabled={busy} onClick={() => act(() => api.review(fb.id, { note: "AI result confirmed" }))}><CheckCircle2 className="h-4 w-4" />The AI is right</button>
               <button className="btn-secondary" onClick={() => setFixing(!fixing)}><PenLine className="h-4 w-4" />Correct the AI</button>
             </>}
+            {can("feedback.manage") && !fb.first_reply_at && !fb.is_imported && <button className="btn-secondary" disabled={busy} onClick={() => act(() => api.markReplied(fb.id))}><Reply className="h-4 w-4" />I replied</button>}
             {fb.source_url && <a className="btn-ghost" href={fb.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" />Open original</a>}
           </div>
+          {fb.first_reply_at && <p className="-mt-3 text-xs text-ink-400">Replied {fmtDate(fb.first_reply_at)}{fb.handled_by ? ` by ${fb.handled_by}` : ""}</p>}
+
+          {!fb.is_imported && <SuggestedReplies id={fb.id} />}
 
           {fixing && (
             <section className="card p-5">
