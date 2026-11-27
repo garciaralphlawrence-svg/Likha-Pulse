@@ -24,6 +24,7 @@
     "customer_changes": { "label": "Request changes", "from": ["approved", "sent"], "to": "changes_requested", "roles": ["CUSTOMER"], "note": true },
     "customer_question": { "label": "Ask a question", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["CUSTOMER"], "note": true },
     "answer": { "label": "Mark question answered", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"], "note": true },
+    "reply": { "label": "I replied to the customer", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"] },
     "assign": { "label": "Assign", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"] },
     "mark_booked": { "label": "Mark as booked (deposit received)", "from": ["accepted"], "to": "booked", "roles": ["SALES", "AGENT", "ADMIN"] },
     "customer_feedback": { "label": "Rate your trip", "from": ["booked"], "to": null, "roles": ["CUSTOMER"] },

@@ -10,14 +10,17 @@ from app.db import get_db
 from app.models import User
 from app.quotes.owner import owner_report, voices_csv
 from app.quotes.workflow import now_iso
+from app.services.care_store import all_cases, all_messages
 from app.services.requests import all_requests
+from app.services.settings_service import quote_settings
 
 router = APIRouter(prefix="/api/owner", tags=["owner"])
 RangeQ = Literal["30", "90", "year", "all"]
 
 
 def _report(db: Session, rng: str, destination: str, salesperson: str) -> dict:
-    return owner_report(all_requests(db), {"range": rng, "destination": destination, "salesperson": salesperson}, now_iso())
+    return owner_report(all_requests(db), {"range": rng, "destination": destination, "salesperson": salesperson}, now_iso(),
+                        {"messages": all_messages(db), "cases": all_cases(db), "settings": quote_settings(db)})
 
 
 @router.get("")

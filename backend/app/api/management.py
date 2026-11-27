@@ -22,7 +22,7 @@ RoleName = Literal["ADMIN", "AGENT", "SALES"]
 
 @router.get("/dashboard")
 def dashboard(user: User = Depends(require("dashboard.view")), db: Session = Depends(get_db)):
-    return views.dashboard(all_requests(db), now_iso())
+    return views.dashboard(all_requests(db), now_iso(), quote_settings(db))
 
 
 @router.get("/catalog")
@@ -118,7 +118,7 @@ def get_settings_(user: User = Depends(require("requests.view")), db: Session = 
 @router.put("/settings")
 def put_settings(value: dict, request: Request, user: User = Depends(require("settings.manage")), db: Session = Depends(get_db)):
     try:
-        clean = validate_quote_settings(value)
+        clean = validate_quote_settings({**quote_settings(db), **value})
     except ValueError as e:
         raise HTTPException(400, str(e))
     merged = set_setting(db, "quotes", clean)

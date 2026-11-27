@@ -2,14 +2,16 @@
 // Port twin: backend/app/quotes/owner.py. Sentiment comes from the free rule engine (src/sentiment/engine.ts).
 import { analyze } from "../sentiment/engine";
 import { destByCode, peso } from "./engine";
-import { LOST_REASONS, STATUSES, Status, TravelRequest, hoursWaiting } from "./workflow";
+import { DEFAULT_SETTINGS, LOST_REASONS, STATUSES, Settings, Status, TravelRequest } from "./workflow";
+import { Case, clockStats, requestClock } from "./clock";
+import type { CustomerMessage } from "./care";
 
 export type Range = "30" | "90" | "year" | "all";
 export interface OwnerFilters { range: Range; destination: string; salesperson: string }
 export type Mood = "positive" | "neutral" | "negative";
 export interface Voice {
-  request_id: string; ref: string; at: string; kind: "request" | "question" | "changes" | "feedback"; kind_label: string; text: string;
-  customer: string; destination: string; destination_name: string; salesperson: string; status: Status; mood: Mood; score: number;
+  request_id: string; ref: string; at: string; kind: "request" | "question" | "changes" | "feedback" | "facebook_page" | "messenger" | "import"; kind_label: string; text: string;
+  customer: string; destination: string; destination_name: string; salesperson: string; status: Status | null; mood: Mood; score: number;
   theme: string; theme_label: string; rating: number | null; is_sample: boolean;
 }
 export interface Slice { key: string; label: string; count: number; positive: number; neutral: number; negative: number; score: number }
@@ -17,6 +19,7 @@ export interface Theme { theme: string; label: string; count: number; positive: 
 export interface TeamRow {
   id: string; name: string; handled: number; avg_response_hours: number | null; offers_sent: number; approval_rate: number | null; booking_rate: number | null;
   revenue: number; avg_margin_pct: number | null; sentiment_score: number | null; voices: number;
+  messages_handled: number; cases_solved: number; cases_on_time_pct: number | null;
 }
 export interface OwnerReport {
   filters: OwnerFilters; period: { from: string | null; to: string }; sample_count: number; requests: number;
@@ -43,7 +46,7 @@ export const THEME_LABEL: Record<string, string> = {
   "Visa & Travel Documents": "Visa and documents", "Safety & Health": "Safety and health", "Payment & Refunds": "Payments and refunds", Destinations: "The destination",
   "Online Experience": "Website and messages", General: "General",
 };
-const KIND_LABEL: Record<Voice["kind"], string> = { request: "Trip request", question: "Question on the offer", changes: "Asked for changes", feedback: "After-trip review" };
+const KIND_LABEL: Record<Voice["kind"], string> = { request: "Trip request", question: "Question on the offer", changes: "Asked for changes", feedback: "After-trip review", facebook_page: "Facebook comment", messenger: "Messenger", import: "Imported message" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY = 86400000;
 const round1 = (x: number) => Math.floor(x * 10 + 0.5) / 10;
@@ -87,6 +90,17 @@ export function voicesOf(r: TravelRequest): Voice[] {
   return out;
 }
 
+/** Facebook comments, Messenger chats and imported messages, each with its sentiment. */
+export function voicesOfMessage(m: CustomerMessage, linked: TravelRequest | null): Voice {
+  const d = linked ? destByCode(linked.input.destination) : null;
+  const md = moodOf(m.text);
+  return {
+    request_id: linked?.id ?? "", ref: linked?.ref ?? "", customer: m.client, destination: linked ? d?.code ?? "other" : "social", destination_name: linked ? d?.name ?? "Other places" : "Facebook and Messenger",
+    salesperson: m.handled_by?.name ?? linked?.assignee?.name ?? "Unassigned", status: linked?.status ?? null, is_sample: m.is_sample,
+    kind: m.channel, kind_label: KIND_LABEL[m.channel], at: m.at, text: m.text, rating: null, mood: md.mood, score: md.score, theme: md.theme, theme_label: THEME_LABEL[md.theme] ?? md.theme,
+  };
+}
+
 function slice(key: string, label: string, vs: Voice[]): Slice {
   const c = (m: Mood) => vs.filter((v) => v.mood === m).length;
   return { key, label, count: vs.length, positive: c("positive"), neutral: c("neutral"), negative: c("negative"), score: Math.round(avg(vs.map((v) => v.score)) ?? 0) };
@@ -99,11 +113,23 @@ function groupBy<T>(xs: T[], key: (x: T) => string): Map<string, T[]> {
 const mondayOf = (iso: string) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 
-export function ownerReport(all: TravelRequest[], f: OwnerFilters, now: string): OwnerReport {
+export function ownerReport(all: TravelRequest[], f: OwnerFilters, now: string, extra: { messages?: CustomerMessage[]; cases?: Case[]; settings?: Settings } = {}): OwnerReport {
   const from = rangeStart(f.range, now);
+  const settings = extra.settings ?? DEFAULT_SETTINGS;
   const scoped = all.filter((r) => (!f.destination || (r.input.destination ?? "other") === f.destination) && (!f.salesperson || r.assignee?.id === f.salesperson));
   const reqs = scoped.filter((r) => !from || r.created_at >= from);
-  const voices = scoped.flatMap(voicesOf).filter((v) => !from || v.at >= from).sort((a, b) => b.at.localeCompare(a.at));
+  const byId = new Map(all.map((r) => [r.id, r]));
+  // channel messages count only when no destination/salesperson filter excludes them
+  const msgs = (extra.messages ?? []).filter((m) => {
+    const linked = m.request_id ? byId.get(m.request_id) ?? null : null;
+    if (f.destination && (!linked || (linked.input.destination ?? "other") !== f.destination)) return false;
+    if (f.salesperson && m.handled_by?.id !== f.salesperson) return false;
+    return true;
+  });
+  const cases = (extra.cases ?? []).filter((c) => !f.salesperson || c.owner?.id === f.salesperson)
+    .filter((c) => !f.destination || (c.request_id && (byId.get(c.request_id)?.input.destination ?? "other") === f.destination));
+  const voices = [...scoped.flatMap(voicesOf), ...msgs.map((m) => voicesOfMessage(m, m.request_id ? byId.get(m.request_id) ?? null : null))]
+    .filter((v) => !from || v.at >= from).sort((a, b) => b.at.localeCompare(a.at));
 
   // ---- sentiment
   const total = voices.length, positive = voices.filter((v) => v.mood === "positive").length, negative = voices.filter((v) => v.mood === "negative").length;
@@ -131,10 +157,13 @@ export function ownerReport(all: TravelRequest[], f: OwnerFilters, now: string):
     const booked = rs.filter((r) => r.status === "booked");
     const vs = voices.filter((v) => rs.some((r) => r.id === v.request_id));
     const margins = approved.filter((r) => r.offer).map((r) => r.offer!.totals.margin_pct);
+    const solved = cases.filter((c) => c.owner?.id === id && c.resolved_at && (!from || c.resolved_at >= from));
     return {
       id, name: rs[0].assignee!.name, handled: rs.length, avg_response_hours: resp.length ? round1(avg(resp)!) : null, offers_sent: rs.filter((r) => has(r, "submit")).length,
       approval_rate: pct(approved.length, decided.length), booking_rate: pct(booked.length, approved.length), revenue: booked.reduce((s, r) => s + (r.offer?.totals.price ?? 0), 0),
       avg_margin_pct: margins.length ? round1(avg(margins)!) : null, sentiment_score: vs.length ? Math.round(avg(vs.map((v) => v.score))!) : null, voices: vs.length,
+      messages_handled: msgs.filter((m) => m.handled_by?.id === id && !m.is_imported && (!from || m.at >= from)).length,
+      cases_solved: solved.length, cases_on_time_pct: pct(solved.filter((c) => c.resolved_at! <= c.due_at).length, solved.length),
     };
   }).sort((a, b) => b.revenue - a.revenue || b.handled - a.handled);
 
@@ -165,7 +194,7 @@ export function ownerReport(all: TravelRequest[], f: OwnerFilters, now: string):
       total, positive, neutral: total - positive - negative, negative, positive_pct: pct(positive, total) ?? 0, negative_pct: pct(negative, total) ?? 0,
       avg_score: Math.round(avg(voices.map((v) => v.score)) ?? 0), trend,
       by_destination: slices((v) => v.destination, (v) => v.destination_name), by_salesperson: slices((v) => v.salesperson, (v) => v.salesperson),
-      by_stage: slices((v) => v.status, (v) => STATUSES[v.status].staff), themes,
+      by_stage: [...groupBy(voices.filter((v) => v.status), (v) => v.status!).entries()].map(([k, vs]) => slice(k, STATUSES[k as Status].staff, vs)).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)), themes,
       attention: voices.filter((v) => v.mood === "negative").slice(0, 12),
       ratings: { avg: rated.length ? round1(avg(rated.map((v) => v.rating!))!) : null, count: rated.length, stars },
     },
@@ -181,12 +210,12 @@ export function ownerReport(all: TravelRequest[], f: OwnerFilters, now: string):
       salespeople: [...new Map(all.filter((r) => r.assignee).map((r) => [r.assignee!.id, r.assignee!.name])).entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
     },
   };
-  report.briefing = briefing(scoped, report, now);
+  report.briefing = briefing(scoped, report, now, cases, settings);
   return report;
 }
 
 /** One plain verdict and up to four bullets. Booking change compares the last 30 days with the 30 days before. */
-function briefing(scoped: TravelRequest[], rep: OwnerReport, now: string) {
+function briefing(scoped: TravelRequest[], rep: OwnerReport, now: string, cases: Case[], settings: Settings) {
   const t = +new Date(now);
   const inWin = (r: TravelRequest, a: number, b: number) => { const at = bookedAt(r); return !!at && r.status === "booked" && +new Date(at) > t - a * DAY && +new Date(at) <= t - b * DAY; };
   const cur = scoped.filter((r) => inWin(r, 30, 0)), prev = scoped.filter((r) => inWin(r, 60, 30));
@@ -200,8 +229,15 @@ function briefing(scoped: TravelRequest[], rep: OwnerReport, now: string) {
   if (top.length) bullets.push(top.length > 1 ? `${top[0][0]} and ${top[1][0]} lead customer requests this quarter.` : `${top[0][0]} leads customer requests this quarter.`);
   const worst = rep.sentiment.themes.find((x) => x.negative > 0);
   if (worst) bullets.push(`Customers are unhappy about ${worst.label.toLowerCase()} on ${worst.requests} request${worst.requests > 1 ? "s" : ""}.`);
-  const waiting = scoped.filter((r) => hoursWaiting(r, now) >= 24).length, pending = scoped.filter((r) => r.status === "pending_approval").length;
-  if (waiting || pending) bullets.push([waiting ? `${waiting} request${waiting > 1 ? "s have" : " has"} waited over 24 hours` : "", pending ? `${pending} offer${pending > 1 ? "s wait" : " waits"} for approval` : ""].filter(Boolean).join("; ") + ".");
+  // Response Clock: cases in red or overdue, and quotation requests past their reply target
+  const cs = clockStats(cases, now);
+  const waiting = scoped.filter((r) => requestClock(r, now, settings)?.stage === "overdue").length, pending = scoped.filter((r) => r.status === "pending_approval").length;
+  const clock = [
+    cs.by_stage.red || cs.by_stage.overdue ? `${cs.by_stage.red} case${cs.by_stage.red === 1 ? " is" : "s are"} red; ${cs.by_stage.overdue} overdue` : "",
+    waiting ? `${waiting} request${waiting > 1 ? "s have" : " has"} waited over ${settings.request_reply_hours} hours` : "",
+    pending ? `${pending} offer${pending > 1 ? "s wait" : " waits"} for approval` : "",
+  ].filter(Boolean);
+  if (clock.length) bullets.push(clock.join("; ") + ".");
   const s = rep.sentiment;
   const about = worst ? `, mainly about ${worst.label.toLowerCase()}` : "";
   const verdict = !s.total ? "Not enough customer messages yet to read the mood."
@@ -216,6 +252,6 @@ function briefing(scoped: TravelRequest[], rep: OwnerReport, now: string) {
 export function voicesCsv(vs: Voice[]): string {
   const esc = (x: unknown) => { const s = String(x ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const head = ["Date", "Reference", "Customer", "Destination", "Salesperson", "Stage", "Type", "Message", "Mood", "Score", "Theme", "Stars", "Sample"];
-  return [head, ...vs.map((v) => [v.at.slice(0, 10), v.ref, v.customer, v.destination_name, v.salesperson, STATUSES[v.status].staff, v.kind_label, v.text, v.mood, v.score, v.theme_label, v.rating ?? "", v.is_sample ? "yes" : ""])]
+  return [head, ...vs.map((v) => [v.at.slice(0, 10), v.ref, v.customer, v.destination_name, v.salesperson, (v.status ? STATUSES[v.status].staff : v.kind_label), v.kind_label, v.text, v.mood, v.score, v.theme_label, v.rating ?? "", v.is_sample ? "yes" : ""])]
     .map((row) => row.map(esc).join(",")).join("\r\n");
 }

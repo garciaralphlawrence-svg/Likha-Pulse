@@ -31,6 +31,26 @@ Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login`
 | GET | `/audit?page=` | audit.view | 50 per page, newest first |
 | GET | `/health` | — | `{status, app}` |
 
+## Customer care and the Response Clock
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/messages?view=waiting\|all` | requests.view | waiting = no reply yet, most urgent clock first; all = newest first (300 max). Each has mood, theme, reply clock, watched words, suggested-reply key |
+| POST | `/messages/{id}/actions` | requests.view | `{action: reply \| open_case \| make_request}`; make_request turns the message into a quotation request |
+| GET | `/cases?view=open\|solved` | requests.view | `{items, stats, team}`. Owner sees all; others see their cases, cases on their requests, and unassigned open cases |
+| POST | `/cases` | requests.view | `{request_id?, message_id?, text, source}`; same text already open -> 400 |
+| POST | `/cases/{id}/actions` | requests.view | `{action: assign \| reply \| step \| note \| solve \| reopen \| traveling, note?, index?, value?, assignee?:{id}}` |
+| GET | `/clients/{key}` | requests.view | everything from one traveller (requests, messages, cases, ratings) |
+| GET | `/reply-templates` | requests.view | suggested replies (English and Taglish) |
+| POST / PUT / DELETE | `/reply-templates`, `/reply-templates/{id}` | replies.manage (Owner) | |
+| GET | `/keyword-watch?days=` | owner.view | messages containing the watched words |
+| GET | `/team-report?months=`, `/team-report/csv` | owner.view | who handled what, first reply and solve times |
+| GET / POST | `/weekly-report`, `/weekly-report/send` | owner.view | emailed when SMTP is set, otherwise written to the log |
+| POST | `/import` | import.manage (Owner) | `{file_name, rows:[{date, client, message, channel}]}` (max 5000) |
+| GET / POST | `/integrations`, `/integrations/{code}/sync` | requests.view / integrations.manage | Facebook Page comments and Messenger |
+
+Customer steps `customer_question` / `customer_changes` with unhappy words, and `customer_feedback` with 1 or 2 stars, open a
+Response Clock case automatically. Staff step `reply` ("I replied") stops a request's reply clock.
+
 ## Workflow steps (`action`)
 | Step | Who | From | To |
 |---|---|---|---|

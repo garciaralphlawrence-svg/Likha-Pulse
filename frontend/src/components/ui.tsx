@@ -93,3 +93,26 @@ export function Stat({ label, value, hint, tone }: { label: string; value: React
     </div>
   );
 }
+
+/** Side panel (full screen on phones), rendered on <body> so page animations never clip it. */
+export function Drawer({ open, onClose, title, children, width = "max-w-xl" }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; width?: string }) {
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open, onClose]);
+  if (!open) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className={clsx("relative flex h-full w-full flex-col bg-ivory-50 shadow-lift", width)} style={{ animation: "slideIn .45s cubic-bezier(.2,.7,.2,1) both" }}>
+        <div className="flex items-center justify-between gap-3 border-b border-ivory-200 px-5 py-4 sm:px-6">
+          <h2 className="min-w-0 font-display text-2xl font-semibold text-ink-900">{title}</h2>
+          <button className="btn-ghost p-2" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>
+      </div>
+    </div>, document.body,
+  );
+}

@@ -21,7 +21,12 @@ ROLE_LABELS: dict = WF["roles"]
 DEFAULT_SETTINGS = {
     "service_fee_pct": RULES["service_fee_pct"], "min_margin_pct": RULES["min_margin_pct"], "validity_days": RULES["validity_days"],
     "deposit_pct": RULES["deposit_pct"], "balance_days_before": RULES["balance_days_before"],
+    # Response Clock targets
+    "urgent_hours": 24, "important_hours": 48, "urgent_reply_minutes": 60, "important_reply_minutes": 240, "request_reply_hours": 24,
+    # Keyword watch and the weekly email
+    "watch_words": ["refund", "scam", "cancel", "delay", "sira", "galit", "estafa"], "weekly_enabled": True, "weekly_recipients": "",
 }
+PRICING_KEYS = ("service_fee_pct", "min_margin_pct", "validity_days", "deposit_pct", "balance_days_before")
 
 
 class FlowError(Exception):
@@ -61,7 +66,7 @@ def js_round(x: float) -> int:
 
 
 def rules_from(s: dict) -> dict:
-    return {**RULES, **{k: s[k] for k in DEFAULT_SETTINGS}}
+    return {**RULES, **{k: s[k] for k in PRICING_KEYS}}
 
 
 def ref_for(year: int, seq: int) -> str:
@@ -263,6 +268,8 @@ def apply(prev: dict, action: str, actor: dict, payload: dict, now: str, setting
         if not req["customer_question"]:
             fail("There is no open question from the customer.")
         req["customer_question"] = None
+    elif action == "reply":
+        event_note = note or "Replied to the customer."
     elif action == "assign":
         a = payload.get("assignee") or fail("Choose a salesperson.")
         if actor["role"] == "SALES" and a.get("id") != actor["id"]:

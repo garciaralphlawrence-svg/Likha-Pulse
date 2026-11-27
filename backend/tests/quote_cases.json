@@ -1937,7 +1937,10 @@
         "revenue": 2847700,
         "avg_margin_pct": 8.2,
         "sentiment_score": 6,
-        "voices": 74
+        "voices": 74,
+        "messages_handled": 0,
+        "cases_solved": 0,
+        "cases_on_time_pct": null
       },
       {
         "id": "s2",
@@ -1950,7 +1953,10 @@
         "revenue": 2655600,
         "avg_margin_pct": 8,
         "sentiment_score": 11,
-        "voices": 43
+        "voices": 43,
+        "messages_handled": 0,
+        "cases_solved": 0,
+        "cases_on_time_pct": null
       }
     ],
     "revenue": [
@@ -2045,6 +2051,711 @@
       7,
       452900,
       1
+    ]
+  },
+  "care_golden": {
+    "messages": 105,
+    "cases": [
+      [
+        "CASE-0001",
+        "hotel",
+        "urgent",
+        "2026-05-30T15:00:00.000Z",
+        "2026-05-31T15:00:00.000Z",
+        "2026-05-31T01:33:00.000Z",
+        "2026-05-30T19:03:49.827Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0002",
+        "documents",
+        "urgent",
+        "2026-06-28T07:46:56.873Z",
+        "2026-06-29T07:46:56.873Z",
+        "2026-06-29T01:50:56.873Z",
+        "2026-06-28T19:50:39.069Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0003",
+        "general",
+        "important",
+        "2026-07-02T20:32:23.934Z",
+        "2026-07-04T20:32:23.934Z",
+        "2026-07-02T21:21:23.934Z",
+        "2026-07-03T15:56:34.743Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0004",
+        "refund",
+        "urgent",
+        "2026-07-04T23:37:00.416Z",
+        "2026-07-05T23:37:00.416Z",
+        "2026-07-05T09:30:00.416Z",
+        "2026-07-06T01:31:12.185Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0005",
+        "general",
+        "important",
+        "2026-07-07T11:29:23.883Z",
+        "2026-07-09T11:29:23.883Z",
+        "2026-07-07T12:37:23.883Z",
+        "2026-07-08T03:58:40.883Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0006",
+        "refund",
+        "urgent",
+        "2026-07-11T21:37:06.026Z",
+        "2026-07-12T21:37:06.026Z",
+        "2026-07-13T01:42:06.026Z",
+        "2026-07-12T03:33:02.515Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0007",
+        "emergency",
+        "urgent",
+        "2026-07-16T14:54:37.467Z",
+        "2026-07-17T14:54:37.467Z",
+        "2026-07-16T17:52:37.467Z",
+        "2026-07-17T20:27:05.855Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0008",
+        "booking",
+        "urgent",
+        "2026-07-23T05:44:48.005Z",
+        "2026-07-24T05:44:48.005Z",
+        "2026-07-23T10:46:48.005Z",
+        "2026-07-24T08:40:11.057Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0009",
+        "tour",
+        "important",
+        "2026-08-03T02:23:52.020Z",
+        "2026-08-05T02:23:52.020Z",
+        "2026-08-03T05:26:52.020Z",
+        "2026-08-05T05:42:13.292Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0010",
+        "emergency",
+        "urgent",
+        "2026-08-05T04:26:48.377Z",
+        "2026-08-06T04:26:48.377Z",
+        "2026-08-05T06:57:48.377Z",
+        "2026-08-05T07:33:04.150Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0011",
+        "tour",
+        "important",
+        "2026-08-15T19:09:12.208Z",
+        "2026-08-17T19:09:12.208Z",
+        "2026-08-15T21:46:12.208Z",
+        "2026-08-17T01:46:55.741Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0012",
+        "transfer",
+        "urgent",
+        "2026-08-24T06:06:49.614Z",
+        "2026-08-25T06:06:49.614Z",
+        "2026-08-24T08:54:49.614Z",
+        "2026-08-24T22:28:39.514Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0013",
+        "transfer",
+        "urgent",
+        "2026-09-07T12:45:34.903Z",
+        "2026-09-08T12:45:34.903Z",
+        "2026-09-07T13:56:34.903Z",
+        "2026-09-08T12:44:41.706Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0014",
+        "transfer",
+        "urgent",
+        "2026-09-11T12:53:38.212Z",
+        "2026-09-12T12:53:38.212Z",
+        "2026-09-11T13:52:38.212Z",
+        "2026-09-12T13:36:31.934Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0015",
+        "transfer",
+        "urgent",
+        "2026-09-15T13:52:12.440Z",
+        "2026-09-16T13:52:12.440Z",
+        "2026-09-15T14:50:12.440Z",
+        "2026-09-16T20:52:58.216Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0016",
+        "tour",
+        "important",
+        "2026-09-26T21:29:38.417Z",
+        "2026-09-28T21:29:38.417Z",
+        "2026-09-27T18:10:38.417Z",
+        "2026-09-29T12:33:34.405Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0017",
+        "emergency",
+        "urgent",
+        "2026-09-30T16:28:02.877Z",
+        "2026-10-01T16:28:02.877Z",
+        "2026-09-30T18:54:02.877Z",
+        "2026-09-30T23:36:39.398Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0018",
+        "tour",
+        "important",
+        "2026-10-02T11:26:51.760Z",
+        "2026-10-04T11:26:51.760Z",
+        "2026-10-02T13:24:51.760Z",
+        "2026-10-04T00:06:43.797Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0019",
+        "transfer",
+        "urgent",
+        "2026-10-07T17:17:12.444Z",
+        "2026-10-08T17:17:12.444Z",
+        "2026-10-08T14:41:12.444Z",
+        "2026-10-08T09:58:11.939Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0020",
+        "emergency",
+        "urgent",
+        "2026-10-13T07:49:34.734Z",
+        "2026-10-14T07:49:34.734Z",
+        "2026-10-13T10:56:34.734Z",
+        "2026-10-14T01:57:18.572Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0021",
+        "general",
+        "important",
+        "2026-10-14T21:14:12.827Z",
+        "2026-10-16T21:14:12.827Z",
+        "2026-10-15T00:04:12.827Z",
+        "2026-10-15T13:32:23.545Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0022",
+        "tour",
+        "important",
+        "2026-10-21T15:47:42.343Z",
+        "2026-10-23T15:47:42.343Z",
+        "2026-10-22T17:27:42.343Z",
+        "2026-10-23T02:52:23.455Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0023",
+        "hotel",
+        "urgent",
+        "2026-10-29T15:44:34.431Z",
+        "2026-10-30T15:44:34.431Z",
+        "2026-10-29T17:25:34.431Z",
+        "2026-10-30T22:20:18.578Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0024",
+        "general",
+        "important",
+        "2026-11-01T17:04:23.407Z",
+        "2026-11-03T17:04:23.407Z",
+        "2026-11-01T19:28:23.407Z",
+        "2026-11-02T01:29:42.606Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0025",
+        "emergency",
+        "urgent",
+        "2026-11-14T05:26:31.939Z",
+        "2026-11-15T05:26:31.939Z",
+        "2026-11-14T08:23:31.939Z",
+        "2026-11-15T01:00:36.328Z",
+        1,
+        "a1"
+      ],
+      [
+        "CASE-0026",
+        "transfer",
+        "urgent",
+        "2026-11-19T20:46:53.399Z",
+        "2026-11-20T20:46:53.399Z",
+        "2026-11-20T20:45:53.399Z",
+        "2026-11-20T09:44:10.779Z",
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0027",
+        "transfer",
+        "urgent",
+        "2026-11-21T01:18:22.566Z",
+        "2026-11-22T01:18:22.566Z",
+        "2026-11-22T01:16:22.566Z",
+        "2026-11-22T02:36:30.585Z",
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0028",
+        "emergency",
+        "urgent",
+        "2026-11-27T01:24:00.000Z",
+        "2026-11-28T01:24:00.000Z",
+        null,
+        null,
+        0,
+        null
+      ],
+      [
+        "CASE-0029",
+        "documents",
+        "urgent",
+        "2026-11-26T18:00:00.000Z",
+        "2026-11-27T18:00:00.000Z",
+        "2026-11-26T18:18:00.000Z",
+        null,
+        2,
+        "s1"
+      ],
+      [
+        "CASE-0030",
+        "emergency",
+        "urgent",
+        "2026-11-26T12:00:00.000Z",
+        "2026-11-27T12:00:00.000Z",
+        "2026-11-26T12:40:00.000Z",
+        null,
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0031",
+        "emergency",
+        "urgent",
+        "2026-11-26T06:00:00.000Z",
+        "2026-11-27T06:00:00.000Z",
+        "2026-11-26T08:10:00.000Z",
+        null,
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0032",
+        "hotel",
+        "urgent",
+        "2026-11-26T21:00:00.000Z",
+        "2026-11-27T21:00:00.000Z",
+        "2026-11-26T21:25:00.000Z",
+        null,
+        1,
+        "s2"
+      ],
+      [
+        "CASE-0033",
+        "refund",
+        "urgent",
+        "2026-11-26T10:00:00.000Z",
+        "2026-11-27T10:00:00.000Z",
+        null,
+        null,
+        0,
+        null
+      ],
+      [
+        "CASE-0034",
+        "refund",
+        "urgent",
+        "2026-11-25T20:00:00.000Z",
+        "2026-11-26T20:00:00.000Z",
+        "2026-11-25T23:00:00.000Z",
+        null,
+        2,
+        "a1"
+      ],
+      [
+        "CASE-0035",
+        "general",
+        "important",
+        "2026-11-26T12:00:00.000Z",
+        "2026-11-28T12:00:00.000Z",
+        "2026-11-26T15:20:00.000Z",
+        null,
+        1,
+        "s1"
+      ],
+      [
+        "CASE-0036",
+        "booking",
+        "important",
+        "2026-11-24T22:00:00.000Z",
+        "2026-11-26T22:00:00.000Z",
+        "2026-11-25T03:00:00.000Z",
+        null,
+        1,
+        "s1"
+      ]
+    ],
+    "message_moods": "npnnpnpnnpppnpnnnpnnnnnnpppnnnnnpnnnnnnnpnnnnnnnpnpnppnnpnnpnnpnnnppnnppnpnnnnnpnpnnpnnnnpnnnnnnnnnnnnnnn",
+    "reply_keys": [
+      "hotel",
+      "thank_you",
+      "inquiry",
+      "emergency",
+      "thank_you",
+      "general",
+      "thank_you",
+      "price",
+      "inquiry",
+      "thank_you",
+      "thank_you",
+      "thank_you",
+      "lost_passport",
+      "thank_you",
+      "complaint",
+      "refund",
+      "complaint",
+      "thank_you",
+      "refund",
+      "inquiry",
+      "emergency",
+      "refund",
+      "general",
+      "booking",
+      "thank_you",
+      "thank_you",
+      "thank_you",
+      "visa",
+      "complaint",
+      "emergency"
+    ],
+    "stats": {
+      "open": 9,
+      "by_stage": {
+        "overdue": 2,
+        "red": 1,
+        "orange": 2,
+        "yellow": 2,
+        "green": 2
+      },
+      "escalated": 3,
+      "traveling_now": 5,
+      "no_reply_yet": 2,
+      "solved": 27,
+      "on_time_pct": 66.7,
+      "avg_solve_minutes": 1359,
+      "avg_first_reply_minutes": 497,
+      "by_person": [
+        {
+          "id": "s1",
+          "name": "Demo Salesperson",
+          "open": 4,
+          "solved": 11,
+          "on_time_pct": 72.7,
+          "avg_solve_minutes": 913
+        },
+        {
+          "id": "a1",
+          "name": "Demo Travel Agent",
+          "open": 1,
+          "solved": 10,
+          "on_time_pct": 50,
+          "avg_solve_minutes": 1701
+        },
+        {
+          "id": "s2",
+          "name": "Second Salesperson (sample)",
+          "open": 2,
+          "solved": 6,
+          "on_time_pct": 83.3,
+          "avg_solve_minutes": 1605
+        }
+      ]
+    },
+    "stats90": {
+      "open": 9,
+      "by_stage": {
+        "overdue": 2,
+        "red": 1,
+        "orange": 2,
+        "yellow": 2,
+        "green": 2
+      },
+      "escalated": 3,
+      "traveling_now": 5,
+      "no_reply_yet": 2,
+      "solved": 15,
+      "on_time_pct": 66.7,
+      "avg_solve_minutes": 1478,
+      "avg_first_reply_minutes": 545,
+      "by_person": [
+        {
+          "id": "s1",
+          "name": "Demo Salesperson",
+          "open": 4,
+          "solved": 4,
+          "on_time_pct": 75,
+          "avg_solve_minutes": 1028
+        },
+        {
+          "id": "a1",
+          "name": "Demo Travel Agent",
+          "open": 1,
+          "solved": 7,
+          "on_time_pct": 57.1,
+          "avg_solve_minutes": 1475
+        },
+        {
+          "id": "s2",
+          "name": "Second Salesperson (sample)",
+          "open": 2,
+          "solved": 4,
+          "on_time_pct": 75,
+          "avg_solve_minutes": 1935
+        }
+      ]
+    },
+    "request_clocks": [],
+    "watch": [
+      {
+        "word": "refund",
+        "count": 1
+      },
+      {
+        "word": "scam",
+        "count": 0
+      },
+      {
+        "word": "cancel",
+        "count": 1
+      },
+      {
+        "word": "delay",
+        "count": 0
+      },
+      {
+        "word": "sira",
+        "count": 1
+      },
+      {
+        "word": "galit",
+        "count": 0
+      },
+      {
+        "word": "estafa",
+        "count": 0
+      }
+    ],
+    "team": [
+      {
+        "name": "Demo Salesperson",
+        "handled": 52,
+        "replied": 52,
+        "solved": 4,
+        "avg_first_reply_minutes": 260,
+        "avg_resolution_minutes": 1028,
+        "cases_on_time_pct": 75
+      },
+      {
+        "name": "Second Salesperson (sample)",
+        "handled": 41,
+        "replied": 41,
+        "solved": 4,
+        "avg_first_reply_minutes": 524,
+        "avg_resolution_minutes": 1935,
+        "cases_on_time_pct": 75
+      },
+      {
+        "name": "Demo Travel Agent",
+        "handled": 28,
+        "replied": 28,
+        "solved": 7,
+        "avg_first_reply_minutes": 228,
+        "avg_resolution_minutes": 1475,
+        "cases_on_time_pct": 57.1
+      }
+    ],
+    "weekly": {
+      "subject": "PAPH weekly report: 2026-11-20 to 2026-11-27",
+      "period": {
+        "from": "2026-11-20T02:00:00.000Z",
+        "to": "2026-11-27T02:00:00.000Z"
+      },
+      "verdict": "More unhappy customers than last week (67% vs 30%).",
+      "kpis": {
+        "messages": 15,
+        "positive_pct": 7,
+        "negative_pct": 67,
+        "prev_negative_pct": 30,
+        "requests": 0,
+        "booked": 0,
+        "booked_revenue": 0
+      },
+      "clock": {
+        "open": 9,
+        "overdue": 2,
+        "red": 1,
+        "solved": 2,
+        "on_time_pct": 50,
+        "requests_overdue": 0
+      },
+      "top_complaints": [
+        {
+          "topic": "Safety and health",
+          "count": 4
+        },
+        {
+          "topic": "Booking",
+          "count": 1
+        },
+        {
+          "topic": "Flights and transfers",
+          "count": 1
+        }
+      ],
+      "most_appreciated": [
+        {
+          "topic": "Staff and guides",
+          "count": 1
+        }
+      ],
+      "watch": [
+        {
+          "word": "refund",
+          "count": 1
+        },
+        {
+          "word": "cancel",
+          "count": 1
+        },
+        {
+          "word": "sira",
+          "count": 1
+        }
+      ],
+      "team": [
+        {
+          "name": "Demo Salesperson",
+          "handled": 21,
+          "avg_first_reply_minutes": 279
+        },
+        {
+          "name": "Second Salesperson (sample)",
+          "handled": 19,
+          "avg_first_reply_minutes": 506
+        },
+        {
+          "name": "Demo Travel Agent",
+          "handled": 13,
+          "avg_first_reply_minutes": 154
+        }
+      ],
+      "actions": [
+        "Close the 2 overdue cases first.",
+        "Look into safety and health: the top complaint this week."
+      ],
+      "enabled": true,
+      "recipients": [],
+      "schedule": "Every Monday, 8:00 AM Philippine time"
+    },
+    "client": [
+      "Sample: Patty G.",
+      "A happy traveller.",
+      2,
+      1,
+      135900,
+      5,
+      {
+        "positive": 3,
+        "neutral": 4,
+        "negative": 1
+      },
+      1,
+      13
+    ],
+    "owner": [
+      {
+        "verdict": "Customer mood is mixed: 46 happy and 42 unhappy messages, mainly about safety and health.",
+        "bullets": [
+          "Bookings up 66% in the last 30 days: ₱1,667,900 from 9 trips.",
+          "Singapore and Japan (Tokyo and Osaka) lead customer requests this quarter.",
+          "Customers are unhappy about safety and health on 1 request.",
+          "1 case is red; 2 overdue."
+        ]
+      },
+      222,
+      42,
+      [
+        [
+          "s1",
+          35,
+          11,
+          72.7
+        ],
+        [
+          "s2",
+          36,
+          6,
+          83.3
+        ]
+      ]
     ]
   }
 }

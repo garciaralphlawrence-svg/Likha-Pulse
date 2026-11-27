@@ -6,6 +6,7 @@ import { peso } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { RequestRow } from "./Requests";
 import { useAuth } from "../lib/auth";
+import { ClockStrip } from "../components/clock";
 
 /** Owner only: the AI's one-line verdict and the few things that matter, over the last 90 days. */
 function OwnerBriefing() {
@@ -42,6 +43,19 @@ function Bars({ items, max }: { items: { label: string; count: number }[]; max: 
   );
 }
 
+/** Response Clock at a glance: open customer cases and quotation requests waiting for a reply. */
+function ClockStrips() {
+  const { data: c } = useAsync(() => api.cases("open"), []);
+  const { data: d } = useAsync(() => api.dashboard(), []);
+  if (!c || !d) return null;
+  return (
+    <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <ClockStrip title="Response Clock: customer cases" counts={c.stats.by_stage} to="/staff/clock" note={c.stats.on_time_pct === null ? undefined : `${c.stats.on_time_pct}% solved on time in the last 90 days`} />
+      <ClockStrip title="Quotation requests waiting for a reply" counts={d.request_clock} to="/staff/requests" />
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { can } = useAuth();
   const { data: d, loading, error } = useAsync(() => api.dashboard(), []);
@@ -50,15 +64,16 @@ export default function Dashboard() {
   const statuses = d.by_status.filter((s) => s.count > 0).map((s) => ({ label: s.label, count: s.count }));
   const briefing = [
     d.awaiting_decision.length ? `${d.awaiting_decision.length} offer${d.awaiting_decision.length > 1 ? "s are" : " is"} waiting for your decision` : "No offers are waiting for approval",
-    d.waiting_long ? `${d.waiting_long} request${d.waiting_long > 1 ? "s have" : " has"} waited over 24 hours` : "every customer has been answered within a day",
+    d.waiting_long ? `${d.waiting_long} request${d.waiting_long > 1 ? "s are" : " is"} overdue for a first reply` : "every quotation request has a reply on time",
   ].join(", and ") + ".";
   return (
     <>
       {can("owner.view") && <OwnerBriefing />}
       <PageHeader eyebrow="Overview" title={can("owner.view") ? "Today" : "Your briefing"} description={<>{briefing}{d.sample_count > 0 && <span className="text-gold-700"> Showing {d.sample_count} sample requests.</span>}</>} />
+      <ClockStrips />
       <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Open requests" value={d.open} hint={`${d.total} in total`} />
-        <Stat label="Waiting 24h+" value={d.waiting_long} tone={d.waiting_long ? "red" : undefined} hint="Need a reply first" />
+        <Stat label="Overdue replies" value={d.waiting_long} tone={d.waiting_long ? "red" : undefined} hint="Requests past the reply target" />
         <Stat label="Booked" value={d.conversion_pct === null ? "—" : `${d.conversion_pct}%`} hint={`${d.booked} of the offers sent became bookings`} tone="gold" />
         <Stat label="Average quote" value={d.avg_quote ? peso(d.avg_quote) : "—"} hint={`${peso(d.pipeline_value)} in offers not yet booked`} />
       </div>

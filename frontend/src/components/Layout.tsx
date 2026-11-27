@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { BarChart3, BookOpen, ClipboardCheck, Inbox, LayoutDashboard, LogOut, Menu, ScrollText, Settings, Smile, Users, Wallet, X } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, Eye, FileUp, Inbox, LayoutDashboard, ListChecks, LogOut, Mail, Menu, MessageCircle, MessageSquareQuote, Plug, ScrollText, Settings, Smile, Timer, Users, Wallet, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { IS_DEMO } from "../api";
@@ -59,17 +59,31 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   );
 }
 
-const NAV = [
-  { to: "/staff", label: "Overview", icon: LayoutDashboard, perm: "dashboard.view" },
-  { to: "/staff/requests", label: "Requests", icon: Inbox, perm: "requests.view" },
-  { to: "/staff/approvals", label: "Approvals", icon: ClipboardCheck, perm: "requests.approve" },
-  { to: "/staff/sentiment", label: "Customer sentiment", icon: Smile, perm: "owner.view" },
-  { to: "/staff/performance", label: "Team performance", icon: BarChart3, perm: "owner.view" },
-  { to: "/staff/revenue", label: "Revenue and margin", icon: Wallet, perm: "owner.view" },
-  { to: "/staff/rates", label: "Sample rates", icon: BookOpen, perm: "catalog.view" },
-  { to: "/staff/team", label: "Staff accounts", icon: Users, perm: "users.manage" },
-  { to: "/staff/settings", label: "Settings", icon: Settings, perm: "settings.manage" },
-  { to: "/staff/activity", label: "Activity", icon: ScrollText, perm: "audit.view" },
+const NAV: { group: string; items: { to: string; label: string; icon: typeof Inbox; perm: string }[] }[] = [
+  { group: "Daily work", items: [
+    { to: "/staff", label: "Overview", icon: LayoutDashboard, perm: "dashboard.view" },
+    { to: "/staff/requests", label: "Requests", icon: Inbox, perm: "requests.view" },
+    { to: "/staff/approvals", label: "Approvals", icon: ClipboardCheck, perm: "requests.approve" },
+    { to: "/staff/inbox", label: "Facebook and Messenger", icon: MessageCircle, perm: "requests.view" },
+    { to: "/staff/clock", label: "Response Clock", icon: Timer, perm: "requests.view" },
+    { to: "/staff/replies", label: "Suggested replies", icon: MessageSquareQuote, perm: "requests.view" },
+  ] },
+  { group: "Owner insights", items: [
+    { to: "/staff/sentiment", label: "Customer sentiment", icon: Smile, perm: "owner.view" },
+    { to: "/staff/performance", label: "Team performance", icon: BarChart3, perm: "owner.view" },
+    { to: "/staff/team-report", label: "Team report", icon: ListChecks, perm: "owner.view" },
+    { to: "/staff/revenue", label: "Revenue and margin", icon: Wallet, perm: "owner.view" },
+    { to: "/staff/watch", label: "Keyword watch", icon: Eye, perm: "owner.view" },
+    { to: "/staff/weekly", label: "Weekly report", icon: Mail, perm: "owner.view" },
+  ] },
+  { group: "Setup", items: [
+    { to: "/staff/connections", label: "Connections", icon: Plug, perm: "requests.view" },
+    { to: "/staff/import", label: "Import past messages", icon: FileUp, perm: "import.manage" },
+    { to: "/staff/rates", label: "Sample rates", icon: BookOpen, perm: "catalog.view" },
+    { to: "/staff/team", label: "Staff accounts", icon: Users, perm: "users.manage" },
+    { to: "/staff/settings", label: "Settings", icon: Settings, perm: "settings.manage" },
+    { to: "/staff/activity", label: "Activity", icon: ScrollText, perm: "audit.view" },
+  ] },
 ];
 const ROLE_NAME: Record<string, string> = { ADMIN: "Owner", AGENT: "Travel agent", SALES: "Salesperson" };
 
@@ -83,8 +97,15 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
     <nav className="relative flex h-full flex-col overflow-hidden bg-ink-950 text-ink-400">
       <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-gold-500/10 blur-3xl" />
       <div className="relative px-6 pb-6 pt-7"><Link to="/staff"><Logo light /></Link></div>
-      <ul className="relative flex-1 space-y-0.5 overflow-y-auto px-4">
-        {NAV.filter((n) => can(n.perm) && !(n.to === "/staff" && !can("dashboard.view"))).map((n) => (
+      <div className="relative flex-1 space-y-5 overflow-y-auto px-4">
+        {NAV.map((g) => {
+          const items = g.items.filter((n) => can(n.perm));
+          if (!items.length) return null;
+          return (
+            <div key={g.group}>
+              <p className="mb-1.5 px-3 text-[10px] font-medium uppercase tracking-[0.24em] text-ink-500">{g.group}</p>
+              <ul className="space-y-0.5">
+        {items.map((n) => (
           <li key={n.to}>
             <NavLink to={n.to} end={n.to === "/staff"}
               className={({ isActive }) => clsx("group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition", isActive ? "bg-white/[0.06] text-ivory-50 shadow-[inset_2px_0_0_#b8975a]" : "hover:bg-white/[0.04] hover:text-ivory-100")}>
@@ -92,8 +113,12 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
             </NavLink>
           </li>
         ))}
-        <li className="pt-4"><Link to="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:text-ivory-100">Customer page</Link></li>
-      </ul>
+              </ul>
+            </div>
+          );
+        })}
+        <Link to="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:text-ivory-100">Customer page</Link>
+      </div>
       <div className="relative m-4 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold-500/20 text-sm font-semibold text-gold-300">{initials}</span>
         <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-ivory-100">{user?.full_name}</div><div className="truncate text-[11px] text-ink-500">{ROLE_NAME[user?.role ?? ""] ?? user?.role}</div></div>

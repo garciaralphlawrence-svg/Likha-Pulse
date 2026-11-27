@@ -27,6 +27,25 @@ class Settings(BaseSettings):
     # Public request form: max requests/actions per IP per minute
     public_rate_limit: int = 20
 
+    # Facebook Page comments + Messenger (official Meta Graph API, needs Meta app review). Empty = not connected.
+    meta_page_id: str = ""
+    meta_page_access_token: str = ""
+    meta_graph_version: str = "v21.0"
+
+    # Email for the Monday weekly report. Empty = the report is only written to the log.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_tls: bool = True
+
+    # Real Facebook/Messenger names are stored as a short code ("Client 7F3A") unless this is false
+    anonymize_authors: bool = True
+    author_hash_salt: str = "change-me"
+    # Weekly report (Monday 8 AM Philippine time) and the 30-minute Facebook/Messenger sync
+    enable_scheduler: bool = True
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

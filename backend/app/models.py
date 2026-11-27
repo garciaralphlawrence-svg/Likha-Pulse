@@ -70,6 +70,55 @@ class TravelRequest(Base):
     data: Mapped[dict] = mapped_column(JSON)
 
 
+class CustomerMessage(Base):
+    """A Facebook comment, Messenger chat or imported message. `data` holds the full message (same shape as the frontend)."""
+    __tablename__ = "customer_messages"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    channel: Mapped[str] = mapped_column(String(20), index=True)
+    client_key: Mapped[str] = mapped_column(String(200), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    is_sample: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_imported: Mapped[bool] = mapped_column(Boolean, default=False)
+    request_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    case_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(200), nullable=True, unique=True)
+    data: Mapped[dict] = mapped_column(JSON)
+
+
+class CaseRecord(Base):
+    """Response Clock case ("CASE-0001"): deadline, owner, playbook steps and updates live in `data`."""
+    __tablename__ = "cases"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    request_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    message_id: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    client_key: Mapped[str] = mapped_column(String(200), index=True)
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    is_sample: Mapped[bool] = mapped_column(Boolean, default=False)
+    data: Mapped[dict] = mapped_column(JSON)
+
+
+class ReplyTemplate(Base):
+    """Suggested reply the team can copy (never sent automatically). Defaults come from app/quotes/reply_templates.json."""
+    __tablename__ = "reply_templates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    situation: Mapped[str] = mapped_column(String(40), index=True)
+    language: Mapped[str] = mapped_column(String(10), default="en")
+    title: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(String(2000))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_by: Mapped[str] = mapped_column(String(120), default="PAPH")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class Counter(Base):
+    """Running numbers for cases (CASE-0001) and messages (msg-1)."""
+    __tablename__ = "counters"
+    name: Mapped[str] = mapped_column(String(20), primary_key=True)
+    last: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class RefCounter(Base):
     """Last reference number used per year (PAPH-2026-0001, PAPH-2026-0002, ...)."""
     __tablename__ = "ref_counters"

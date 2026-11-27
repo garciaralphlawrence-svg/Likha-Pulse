@@ -23,7 +23,13 @@ export interface TravelRequest {
   /** Post-trip feedback from the customer (1 to 5 stars and a comment). */
   feedback?: { rating: number; text: string; at: string } | null;
 }
-export interface Settings { service_fee_pct: number; min_margin_pct: number; validity_days: number; deposit_pct: number; balance_days_before: number }
+export interface Settings {
+  service_fee_pct: number; min_margin_pct: number; validity_days: number; deposit_pct: number; balance_days_before: number;
+  /** Response Clock targets */
+  urgent_hours: number; important_hours: number; urgent_reply_minutes: number; important_reply_minutes: number; request_reply_hours: number;
+  /** Keyword watch and the weekly email */
+  watch_words: string[]; weekly_enabled: boolean; weekly_recipients: string;
+}
 
 export const STATUSES = WF.statuses as Record<Status, { staff: string; customer: string; step: number; open: boolean }>;
 export const ACTIONS = WF.actions as Record<ActionCode, { label: string; from: Status[]; to: Status | null; roles: Role[]; note?: boolean; reason?: boolean }>;
@@ -32,6 +38,8 @@ export const ROLE_LABELS = WF.roles as Record<string, string>;
 export const DEFAULT_SETTINGS: Settings = {
   service_fee_pct: RULES.service_fee_pct, min_margin_pct: RULES.min_margin_pct, validity_days: RULES.validity_days,
   deposit_pct: RULES.deposit_pct, balance_days_before: RULES.balance_days_before,
+  urgent_hours: 24, important_hours: 48, urgent_reply_minutes: 60, important_reply_minutes: 240, request_reply_hours: 24,
+  watch_words: ["refund", "scam", "cancel", "delay", "sira", "galit", "estafa"], weekly_enabled: true, weekly_recipients: "",
 };
 export const rulesFrom = (s: Settings): Rules => ({ ...RULES, service_fee_pct: s.service_fee_pct, min_margin_pct: s.min_margin_pct, validity_days: s.validity_days, deposit_pct: s.deposit_pct, balance_days_before: s.balance_days_before });
 
@@ -199,6 +207,9 @@ export function apply(prev: TravelRequest, action: ActionCode, actor: Actor, pay
       eventNote = `${rating} of 5 stars.${note ? " " + note : ""}`;
       break;
     }
+    case "reply":
+      eventNote = note || "Replied to the customer.";
+      break;
     case "assign": {
       const a = payload.assignee ?? fail("Choose a salesperson.");
       if (actor.role === "SALES" && a.id !== actor.id) fail("Salespeople can only take a request for themselves.");

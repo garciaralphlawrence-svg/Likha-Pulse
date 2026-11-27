@@ -123,6 +123,25 @@ def seed_history(db: Session, settings: dict, people: dict) -> int:
     return len(hist)
 
 
+def seed_care(db: Session, settings: dict, people: dict) -> tuple[int, int]:
+    """Sample Facebook/Messenger messages (about 6 months) and the live Response Clock cases (one at every colour)."""
+    from app.quotes.care import generate_messages, sample_live_cases
+    from app.services.care_store import bump_counter, save_many
+
+    now = W.now_iso()
+    hist = sorted((r for r in all_requests(db) if r["id"].startswith("hist-")), key=lambda r: int(r["id"][5:]))  # generation order, like the TS demo
+    names = list(dict.fromkeys(r["customer"]["name"] for r in hist))
+    s1, s2 = people["sales"]
+    gm = generate_messages(now, [s1, s2, people["agent"]], names, settings, 1)
+    live = sample_live_cases(now, {"sales": s1, "sales2": s2, "agent": people["agent"]}, settings, len(gm["cases"]) + 1, len(gm["messages"]) + 1)
+    messages, cases = gm["messages"] + live["messages"], gm["cases"] + live["cases"]
+    save_many(db, messages, cases)
+    bump_counter(db, "case", len(cases))
+    bump_counter(db, "msg", len(messages))
+    db.commit()
+    return len(messages), len(cases)
+
+
 def seed_samples(db: Session, settings: dict, people: dict | None = None) -> int:
     """Live sample requests across the whole flow (the sales queue, approvals, offers out)."""
     sales = people["sales"][0] if people else SAMPLE_SALES

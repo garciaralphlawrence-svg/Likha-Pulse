@@ -16,6 +16,7 @@ from app.models import TravelRequest
 from app.quotes import engine as E
 from app.quotes import views
 from app.quotes import workflow as W
+from app.services import care_store
 from app.services import requests as store
 from app.services.settings_service import quote_settings
 
@@ -147,5 +148,7 @@ def customer_action(ref: str, body: CustomerActionIn, request: Request, _: None 
         raise HTTPException(400, str(e))
     store.to_row(row, data)
     db.commit()
+    rating = data["feedback"]["rating"] if body.action == "customer_feedback" and data.get("feedback") else None
+    care_store.auto_case(db, data, body.action, body.note, rating, settings)  # unhappy words or a low rating open a Response Clock case
     audit(db, None, f"request_{body.action}", "request", data["ref"], {"to": data["status"]}, request)
     return views.public_view(data, settings, now)

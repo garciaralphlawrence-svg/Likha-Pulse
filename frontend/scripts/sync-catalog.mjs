@@ -4,5 +4,6 @@ import { copyFileSync } from "node:fs";
 copyFileSync("../backend/app/quotes/catalog.json", "src/quote/catalog.json");
 copyFileSync("../backend/app/quotes/workflow.json", "src/quote/workflow.json");
 copyFileSync("../backend/app/quotes/sample_history.json", "src/quote/sample_history.json");
+for (const f of ["playbooks.json", "reply_templates.json", "sample_messages.json"]) copyFileSync(`../backend/app/quotes/${f}`, `src/quote/${f}`);
 copyFileSync("../backend/app/sentiment/lexicon.json", "src/sentiment/lexicon.json");
 console.log("catalog.json, workflow.json, sample_history.json and the sentiment lexicon synced from backend/app/quotes (tests read backend/tests/quote_cases.json directly)");

@@ -1,5 +1,6 @@
 import { Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { MOOD_COLOR, MoodBar, MoodLegend, OwnerFilterBar, TrendColumns, useOwnerFilters } from "../components/charts";
 import { Card, Empty, ErrorBox, PageHeader, SampleTag, Spinner, Stat, Tag } from "../components/ui";
@@ -10,7 +11,7 @@ import type { Slice, Voice } from "../quote/owner";
 const MOOD_TONE = { positive: "green", neutral: "slate", negative: "red" } as const;
 const MOOD_WORD = { positive: "Happy", neutral: "Neutral", negative: "Unhappy" } as const;
 
-function Quote({ v }: { v: Voice }) {
+function Quote({ v, onCase }: { v: Voice; onCase?: (v: Voice) => void }) {
   return (
     <li className="rounded-xl border border-ivory-200 bg-white p-4">
       <p className="font-display text-lg italic leading-snug text-ink-800">“{v.text}”</p>
@@ -18,8 +19,9 @@ function Quote({ v }: { v: Voice }) {
         <Tag tone={MOOD_TONE[v.mood]}>{MOOD_WORD[v.mood]}</Tag>
         {v.rating && <span className="flex items-center gap-0.5 text-gold-700">{Array.from({ length: v.rating }, (_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}</span>}
         <span>{v.kind_label} · {v.customer} · {v.destination_name} · {fmtDate(v.at, false)}</span>
-        <Link className="font-medium text-gold-700 underline-offset-2 hover:underline" to={`/staff/requests/${v.request_id}`}>{v.ref}</Link>
+        {v.request_id ? <Link className="font-medium text-gold-700 underline-offset-2 hover:underline" to={`/staff/requests/${v.request_id}`}>{v.ref}</Link> : <Link className="font-medium text-gold-700 hover:underline" to="/staff/inbox">Inbox</Link>}
         {v.is_sample && <SampleTag />}
+        {onCase && <button className="ml-auto rounded-full border border-red-200 px-2.5 py-0.5 text-xs font-medium text-red-800 hover:bg-red-50" onClick={() => onCase(v)}>Open a case</button>}
       </div>
     </li>
   );
@@ -40,6 +42,15 @@ function Slices({ items }: { items: Slice[] }) {
 }
 
 export default function Sentiment() {
+  const nav = useNavigate();
+  const [caseErr, setCaseErr] = useState<unknown>(null);
+  const openCase = async (v: Voice) => {
+    setCaseErr(null);
+    try {
+      const c = await api.openCase({ request_id: v.request_id || null, message_id: null, text: v.text, source: v.kind === "feedback" ? "feedback" : v.request_id ? "request" : "message" });
+      nav(`/staff/clock?open=${c.id}`);
+    } catch (x) { setCaseErr(x); }
+  };
   const [f, setF] = useOwnerFilters();
   const { data: r, loading, error } = useAsync(() => api.owner(f), [f.range, f.destination, f.salesperson]);
   const s = r?.sentiment;
@@ -88,7 +99,8 @@ export default function Sentiment() {
                   </ul>
                 </Card>
                 <Card title="Needs attention" subtitle="Unhappy messages, newest first. Open one to see the request.">
-                  {s.attention.length ? <ul className="space-y-3">{s.attention.map((v, i) => <Quote key={i} v={v} />)}</ul> : <Empty title="No unhappy messages">Nice work.</Empty>}
+                  <ErrorBox error={caseErr} />
+                  {s.attention.length ? <ul className="space-y-3">{s.attention.map((v, i) => <Quote key={i} v={v} onCase={openCase} />)}</ul> : <Empty title="No unhappy messages">Nice work.</Empty>}
                 </Card>
               </div>
               <Card title="After-trip ratings">

@@ -15,6 +15,7 @@ const COLS: { label: string; hint: string; value: (t: TeamRow) => string; warn?:
   { label: "Booked", hint: "of approved offers", value: (t) => (t.booking_rate === null ? "—" : `${t.booking_rate}%`) },
   { label: "Revenue", hint: "booked trips", value: (t) => peso(t.revenue) },
   { label: "Avg margin", hint: "on approved offers", value: (t) => (t.avg_margin_pct === null ? "—" : `${t.avg_margin_pct}%`), warn: (t) => t.avg_margin_pct !== null && t.avg_margin_pct < 8 },
+  { label: "Cases on time", hint: "Response Clock, solved in time", value: (t) => (t.cases_on_time_pct === null ? "—" : `${t.cases_on_time_pct}% of ${t.cases_solved}`), warn: (t) => t.cases_on_time_pct !== null && t.cases_on_time_pct < 70 },
   { label: "Customer mood", hint: "from their customers", value: (t) => `${moodWord(t.sentiment_score)}${t.sentiment_score === null ? "" : ` (${t.sentiment_score > 0 ? "+" : ""}${t.sentiment_score})`}` },
 ];
 
@@ -45,7 +46,7 @@ export default function Performance() {
               </Card>
             ))}
           </div>
-          <p className="text-xs text-ink-400">Red means worth a look: first reply over 12 hours, or margin under 8%.{r.sample_count > 0 ? " Includes sample data for this preview." : ""}</p>
+          <p className="text-xs text-ink-400">Red means worth a look: first reply over 12 hours, margin under 8%, or fewer than 70% of cases solved on time.{r.sample_count > 0 ? " Includes sample data for this preview." : ""}</p>
         </div>
       )}
     </>

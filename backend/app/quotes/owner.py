@@ -10,7 +10,8 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from app.quotes.engine import dest_by_code, peso
-from app.quotes.workflow import LOST_REASONS, STATUSES, hours_waiting, parse_iso
+from app.quotes.clock import clock_stats, request_clock
+from app.quotes.workflow import DEFAULT_SETTINGS, LOST_REASONS, STATUSES, parse_iso
 from app.sentiment.rule_engine import analyze
 
 THEME_LABEL = {
@@ -19,7 +20,8 @@ THEME_LABEL = {
     "Visa & Travel Documents": "Visa and documents", "Safety & Health": "Safety and health", "Payment & Refunds": "Payments and refunds", "Destinations": "The destination",
     "Online Experience": "Website and messages", "General": "General",
 }
-KIND_LABEL = {"request": "Trip request", "question": "Question on the offer", "changes": "Asked for changes", "feedback": "After-trip review"}
+KIND_LABEL = {"request": "Trip request", "question": "Question on the offer", "changes": "Asked for changes", "feedback": "After-trip review",
+              "facebook_page": "Facebook comment", "messenger": "Messenger", "import": "Imported message"}
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DAY = 86400000
 EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
@@ -108,6 +110,21 @@ def voices_of(r: dict) -> list[dict]:
     return out
 
 
+def voices_of_message(m: dict, linked) -> dict:
+    """Facebook comments, Messenger chats and imported messages, each with its sentiment."""
+    d = dest_by_code(linked["input"].get("destination")) if linked else None
+    md = mood_of(m["text"])
+    return {
+        "request_id": linked["id"] if linked else "", "ref": linked["ref"] if linked else "", "customer": m["client"],
+        "destination": (d["code"] if d else "other") if linked else "social",
+        "destination_name": (d["name"] if d else "Other places") if linked else "Facebook and Messenger",
+        "salesperson": (m.get("handled_by") or {}).get("name") or ((linked or {}).get("assignee") or {}).get("name") or "Unassigned",
+        "status": linked["status"] if linked else None, "is_sample": m["is_sample"],
+        "kind": m["channel"], "kind_label": KIND_LABEL[m["channel"]], "at": m["at"], "text": m["text"], "rating": None, "mood": md["mood"],
+        "score": md["score"], "theme": md["theme"], "theme_label": THEME_LABEL.get(md["theme"], md["theme"]),
+    }
+
+
 def _slice(key: str, label: str, vs: list[dict]) -> dict:
     def c(m):
         return sum(1 for v in vs if v["mood"] == m)
@@ -140,13 +157,34 @@ def _sort(xs: list, *keys):
     return out
 
 
-def owner_report(all_reqs: list[dict], f: dict, now: str) -> dict:
+def owner_report(all_reqs: list[dict], f: dict, now: str, extra: dict | None = None) -> dict:
+    """extra = {"messages": [...], "cases": [...], "settings": {...}} (all optional)."""
+    extra = extra or {}
     frm = range_start(f["range"], now)
+    settings = extra.get("settings") or DEFAULT_SETTINGS
     scoped = [r for r in all_reqs if (not f["destination"] or (r["input"].get("destination") or "other") == f["destination"])
               and (not f["salesperson"] or (r.get("assignee") or {}).get("id") == f["salesperson"])]
     reqs = [r for r in scoped if not frm or r["created_at"] >= frm]
-    voices = [v for r in scoped for v in voices_of(r) if not frm or v["at"] >= frm]
-    voices = sorted(voices, key=lambda v: v["at"], reverse=True)
+    by_id = {r["id"]: r for r in all_reqs}
+
+    def keep_msg(m):  # channel messages count only when no destination/salesperson filter excludes them
+        linked = by_id.get(m["request_id"]) if m.get("request_id") else None
+        if f["destination"] and (not linked or (linked["input"].get("destination") or "other") != f["destination"]):
+            return False
+        if f["salesperson"] and (m.get("handled_by") or {}).get("id") != f["salesperson"]:
+            return False
+        return True
+
+    def case_dest(c):
+        linked = by_id.get(c["request_id"]) if c.get("request_id") else None
+        return (linked["input"].get("destination") or "other") if linked else "other"
+
+    msgs = [m for m in (extra.get("messages") or []) if keep_msg(m)]
+    cases = [c for c in (extra.get("cases") or []) if not f["salesperson"] or (c.get("owner") or {}).get("id") == f["salesperson"]]
+    cases = [c for c in cases if not f["destination"] or (c.get("request_id") and case_dest(c) == f["destination"])]
+    voices = [v for r in scoped for v in voices_of(r)]
+    voices += [voices_of_message(m, by_id.get(m["request_id"]) if m.get("request_id") else None) for m in msgs]
+    voices = sorted([v for v in voices if not frm or v["at"] >= frm], key=lambda v: v["at"], reverse=True)
 
     # ---- sentiment
     total = len(voices)
@@ -189,12 +227,15 @@ def owner_report(all_reqs: list[dict], f: dict, now: str) -> dict:
         ids = {r["id"] for r in rs}
         vs = [v for v in voices if v["request_id"] in ids]
         margins = [r["offer"]["totals"]["margin_pct"] for r in approved if r.get("offer")]
+        solved = [c for c in cases if (c.get("owner") or {}).get("id") == pid and c["resolved_at"] and (not frm or c["resolved_at"] >= frm)]
         team.append({
             "id": pid, "name": rs[0]["assignee"]["name"], "handled": len(rs), "avg_response_hours": round1(avg(resp)) if resp else None,
             "offers_sent": sum(1 for r in rs if has(r, "submit")), "approval_rate": pct(len(approved), len(decided)),
             "booking_rate": pct(len(booked_rs), len(approved)), "revenue": sum((r.get("offer") or {}).get("totals", {}).get("price", 0) for r in booked_rs),
             "avg_margin_pct": round1(avg(margins)) if margins else None,
             "sentiment_score": js_round(avg([v["score"] for v in vs])) if vs else None, "voices": len(vs),
+            "messages_handled": sum(1 for m in msgs if (m.get("handled_by") or {}).get("id") == pid and not m["is_imported"] and (not frm or m["at"] >= frm)),
+            "cases_solved": len(solved), "cases_on_time_pct": pct(sum(1 for c in solved if c["resolved_at"] <= c["due_at"]), len(solved)),
         })
     team = _sort(team, (lambda t: t["revenue"], True), (lambda t: t["handled"], True))
 
@@ -243,7 +284,8 @@ def owner_report(all_reqs: list[dict], f: dict, now: str) -> dict:
             "avg_score": js_round(a_all if a_all is not None else 0), "trend": trend,
             "by_destination": slices(lambda v: v["destination"], lambda v: v["destination_name"]),
             "by_salesperson": slices(lambda v: v["salesperson"], lambda v: v["salesperson"]),
-            "by_stage": slices(lambda v: v["status"], lambda v: STATUSES[v["status"]]["staff"]), "themes": themes,
+            "by_stage": _sort([_slice(k, STATUSES[k]["staff"], vs) for k, vs in _group([v for v in voices if v["status"]], lambda v: v["status"]).items()],
+                              (lambda x: x["count"], True), (lambda x: x["label"], False)), "themes": themes,
             "attention": [v for v in voices if v["mood"] == "negative"][:12],
             "ratings": {"avg": round1(avg([v["rating"] for v in rated])) if rated else None, "count": len(rated), "stars": stars},
         },
@@ -261,11 +303,11 @@ def owner_report(all_reqs: list[dict], f: dict, now: str) -> dict:
             "salespeople": sorted([{"id": i, "name": n} for i, n in people.items()], key=lambda x: x["name"]),
         },
     }
-    report["briefing"] = _briefing(scoped, report, now)
+    report["briefing"] = _briefing(scoped, report, now, cases, settings)
     return report
 
 
-def _briefing(scoped: list[dict], rep: dict, now: str) -> dict:
+def _briefing(scoped: list[dict], rep: dict, now: str, cases: list[dict], settings: dict) -> dict:
     """One plain verdict and up to four bullets. Booking change compares the last 30 days with the 30 days before."""
     t = ms(now)
 
@@ -293,12 +335,17 @@ def _briefing(scoped: list[dict], rep: dict, now: str) -> dict:
     worst = next((x for x in rep["sentiment"]["themes"] if x["negative"] > 0), None)
     if worst:
         bullets.append(f"Customers are unhappy about {worst['label'].lower()} on {worst['requests']} request{'s' if worst['requests'] > 1 else ''}.")
-    waiting = sum(1 for r in scoped if hours_waiting(r, now) >= 24)
+    # Response Clock: cases in red or overdue, and quotation requests past their reply target
+    cs = clock_stats(cases, now)
+    waiting = sum(1 for r in scoped if (request_clock(r, now, settings) or {}).get("stage") == "overdue")
     pending = sum(1 for r in scoped if r["status"] == "pending_approval")
-    if waiting or pending:
-        parts = [f"{waiting} request{'s have' if waiting > 1 else ' has'} waited over 24 hours" if waiting else "",
-                 f"{pending} offer{'s wait' if pending > 1 else ' waits'} for approval" if pending else ""]
-        bullets.append("; ".join(p for p in parts if p) + ".")
+    red, over = cs["by_stage"]["red"], cs["by_stage"]["overdue"]
+    parts = [f"{red} case{' is' if red == 1 else 's are'} red; {over} overdue" if red or over else "",
+             f"{waiting} request{'s have' if waiting > 1 else ' has'} waited over {settings['request_reply_hours']} hours" if waiting else "",
+             f"{pending} offer{'s wait' if pending > 1 else ' waits'} for approval" if pending else ""]
+    parts = [x for x in parts if x]
+    if parts:
+        bullets.append("; ".join(parts) + ".")
     s = rep["sentiment"]
     about = f", mainly about {worst['label'].lower()}" if worst else ""
     if not s["total"]:
@@ -321,6 +368,6 @@ def voices_csv(vs: list[dict]) -> str:
         return '"' + s.replace('"', '""') + '"' if re.search(r'[",\n]', s) else s
 
     head = ["Date", "Reference", "Customer", "Destination", "Salesperson", "Stage", "Type", "Message", "Mood", "Score", "Theme", "Stars", "Sample"]
-    rows = [head] + [[v["at"][:10], v["ref"], v["customer"], v["destination_name"], v["salesperson"], STATUSES[v["status"]]["staff"], v["kind_label"],
+    rows = [head] + [[v["at"][:10], v["ref"], v["customer"], v["destination_name"], v["salesperson"], STATUSES[v["status"]]["staff"] if v["status"] else v["kind_label"], v["kind_label"],
                       v["text"], v["mood"], v["score"], v["theme_label"], "" if v["rating"] is None else v["rating"], "yes" if v["is_sample"] else ""] for v in vs]
     return "\r\n".join(",".join(esc(c) for c in row) for row in rows)

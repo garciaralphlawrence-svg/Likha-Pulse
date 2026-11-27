@@ -2,12 +2,14 @@
 // Port twin: backend/app/quotes/views.py.
 import type { Dashboard, PublicView, RequestDetail, RequestSummary } from "../api/types";
 import { destByCode, paxText } from "./engine";
-import { ACTIONS, ActionCode, LOST_REASONS, Role, STATUSES, Settings, Status, TravelRequest, allowed, hoursWaiting, isExpired, quotationTerms } from "./workflow";
+import { ACTIONS, ActionCode, DEFAULT_SETTINGS, LOST_REASONS, Role, STATUSES, Settings, Status, TravelRequest, allowed, isExpired, quotationTerms } from "./workflow";
+import { requestClock } from "./clock";
 
 export const QUEUE: Status[] = ["new", "ai_recommended", "offer_drafted", "changes_requested"];
 const QUOTED: Status[] = ["approved", "sent", "accepted", "booked"];
 
-export function summary(r: TravelRequest, now: string): RequestSummary {
+export function summary(r: TravelRequest, now: string, settings: Settings = DEFAULT_SETTINGS): RequestSummary {
+  const clock = requestClock(r, now, settings);
   const rec = r.recommendation, opt = rec.options.find((o) => o.code === (r.offer?.option ?? rec.recommended));
   const t = r.offer?.totals;
   return {
@@ -16,26 +18,28 @@ export function summary(r: TravelRequest, now: string): RequestSummary {
     tier_label: opt?.tier_label ?? "", verdict: rec.verdict, assignee: r.assignee?.name ?? null,
     ai_low: opt?.total_low ?? null, ai_high: opt?.total_high ?? null, offer_price: t ? t.price : null, margin_pct: t ? t.margin_pct : null,
     flags: {
-      waiting_hours: Math.floor(hoursWaiting(r, now)), expired: isExpired(r, now), question: !!r.customer_question,
+      waiting_hours: clock ? Math.floor((+new Date(now) - +new Date(clock.opened_at)) / 3600000) : 0, expired: isExpired(r, now), question: !!r.customer_question,
       below_cost: !!t?.below_cost, low_margin: !!t?.low_margin, budget_too_low: rec.budget?.status === "over",
     },
+    clock,
   };
 }
 
-export function list(all: TravelRequest[], view: "queue" | "approval" | "open" | "closed" | "all", now: string): RequestSummary[] {
+export function list(all: TravelRequest[], view: "queue" | "approval" | "open" | "closed" | "all", now: string, settings: Settings = DEFAULT_SETTINGS): RequestSummary[] {
   const pick = all.filter((r) =>
     view === "queue" ? QUEUE.includes(r.status) || (!!r.customer_question && STATUSES[r.status].open)
       : view === "approval" ? r.status === "pending_approval"
       : view === "open" ? STATUSES[r.status].open
       : view === "closed" ? !STATUSES[r.status].open : true);
-  const rows = pick.map((r) => summary(r, now));
+  const rows = pick.map((r) => summary(r, now, settings));
   if (view === "queue" || view === "approval") return rows.sort((a, b) => b.flags.waiting_hours - a.flags.waiting_hours || a.created_at.localeCompare(b.created_at));
   return rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
 export function detail(r: TravelRequest, role: Role, settings: Settings, now: string): RequestDetail {
   const showTerms = QUOTED.includes(r.status) && !!r.approval && !!r.offer;
-  return { ...r, allowed: allowed(r, role), expired: isExpired(r, now), waiting_hours: Math.floor(hoursWaiting(r, now)), terms: showTerms ? quotationTerms(r, settings, now) : null };
+  const clock = requestClock(r, now, settings);
+  return { ...r, allowed: allowed(r, role), expired: isExpired(r, now), waiting_hours: clock ? Math.floor((+new Date(now) - +new Date(clock.opened_at)) / 3600000) : 0, clock, terms: showTerms ? quotationTerms(r, settings, now) : null };
 }
 
 const PUBLIC_EVENTS: Record<string, string> = {
@@ -68,7 +72,8 @@ export function publicView(r: TravelRequest, settings: Settings, now: string): P
   };
 }
 
-export function dashboard(all: TravelRequest[], now: string): Dashboard {
+export function dashboard(all: TravelRequest[], now: string, settings: Settings = DEFAULT_SETTINGS): Dashboard {
+  const clocks = all.map((r) => requestClock(r, now, settings)).filter((c) => c);
   const count = (s: Status) => all.filter((r) => r.status === s).length;
   const booked = count("booked"), lost = count("lost"), declined = count("declined");
   const offered = all.filter((r) => r.events.some((e) => e.action === "approve")).length;
@@ -85,8 +90,9 @@ export function dashboard(all: TravelRequest[], now: string): Dashboard {
     by_status: (Object.keys(STATUSES) as Status[]).filter((s) => s !== "new").map((s) => ({ status: s, label: STATUSES[s].staff, count: count(s) })),
     top_destinations: Object.values(dest).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 6),
     lost_reasons: Object.entries(reasons).map(([reason, c]) => ({ reason, label: LOST_REASONS[reason], count: c })).sort((a, b) => b.count - a.count),
-    awaiting_decision: list(all, "approval", now),
-    waiting_long: all.filter((r) => hoursWaiting(r, now) >= 24).length,
+    awaiting_decision: list(all, "approval", now, settings),
+    waiting_long: clocks.filter((c) => c!.stage === "overdue").length,
+    request_clock: Object.fromEntries(["overdue", "red", "orange", "yellow", "green"].map((k) => [k, clocks.filter((c) => c!.stage === k).length])),
     sample_count: all.filter((r) => r.is_sample).length,
   };
 }

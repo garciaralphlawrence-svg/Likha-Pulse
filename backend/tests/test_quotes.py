@@ -135,3 +135,67 @@ def test_owner_history_and_report_match_typescript():
     expected = CASES["owner_golden"]
     for k in expected:
         assert json.loads(json.dumps(got[k])) == expected[k], k
+
+
+def test_response_clock_and_care_match_typescript():
+    """Sample messages, cases, clocks, keyword watch, team/weekly reports, client history and the owner report: same as TS (care_golden)."""
+    from app.quotes import care as C
+    from app.quotes import clock as K
+    from app.quotes.history import generate_history
+    from app.quotes.owner import owner_report
+
+    now = "2026-11-27T02:00:00.000Z"
+
+    def a(i, n, r):
+        return {"id": i, "name": n, "role": r}
+
+    s1, s2, a1 = a("s1", "Demo Salesperson", "SALES"), a("s2", "Second Salesperson (sample)", "SALES"), a("a1", "Demo Travel Agent", "AGENT")
+    S = W.DEFAULT_SETTINGS
+    hist = generate_history(now, {"sales": [s1, s2], "agent": a1}, 1, S)
+    names = list(dict.fromkeys(r["customer"]["name"] for r in hist))
+    gm = C.generate_messages(now, [s1, s2, a1], names, S, 1)
+    live = C.sample_live_cases(now, {"sales": s1, "sales2": s2, "agent": a1}, S, len(gm["cases"]) + 1, len(gm["messages"]) + 1)
+    messages, cases = gm["messages"] + live["messages"], gm["cases"] + live["cases"]
+    o, d = "2026-11-26T00:00:00.000Z", "2026-11-27T00:00:00.000Z"
+    assert [K.stage_at(o, d, None, K.add_ms(o, h * 3600000)) for h in (5.99, 6, 12, 18, 24)] == ["green", "yellow", "orange", "red", "overdue"]
+    assert ",".join(K.case_view(c, now)["stage"] for c in live["cases"]) == "green,yellow,orange,red,green,orange,overdue,yellow,overdue"
+    rep = owner_report(hist, {"range": "all", "destination": "", "salesperson": ""}, now, {"messages": messages, "cases": cases, "settings": S})
+    ch = C.client_history(C.name_key(names[0]), hist, messages, cases, now)
+    got = {
+        "messages": len(messages),
+        "cases": [[c["id"], c["situation"], c["priority"], c["opened_at"], c["due_at"], c["first_reply_at"], c["resolved_at"],
+                   sum(1 for x in c["steps"] if x["done"]), c["owner"] and c["owner"]["id"]] for c in cases],
+        "message_moods": "".join(C.message_view(m, now, S)["mood"][0] for m in messages), "reply_keys": [C.reply_key(m["text"]) for m in messages[:30]],
+        "stats": K.clock_stats(cases, now), "stats90": K.clock_stats(cases, now, "2026-08-29T02:00:00.000Z"),
+        "request_clocks": [c for c in (K.request_clock(r, now, S) for r in hist) if c],
+        "watch": C.keyword_watch(hist, messages, S["watch_words"], 30, now)["counts"],
+        "team": C.team_report(hist, messages, cases, 3, now)["staff"], "weekly": C.weekly_report(hist, messages, cases, S, now),
+        "client": [ch["name"], ch["verdict"], len(ch["requests"]), ch["booked"], ch["spent"], ch["rating"], ch["moods"], len(ch["cases"]), len(ch["timeline"])],
+        "owner": [rep["briefing"], rep["sentiment"]["total"], rep["sentiment"]["negative"],
+                  [[t["id"], t["messages_handled"], t["cases_solved"], t["cases_on_time_pct"]] for t in rep["team"]]],
+    }
+    expected = CASES["care_golden"]
+    for k in expected:
+        assert json.loads(json.dumps(got[k])) == expected[k], k
+
+
+def test_response_clock_rules():
+    from app.quotes import clock as K
+    now, S = "2026-11-27T02:00:00.000Z", W.DEFAULT_SETTINGS
+    s1, s2 = {"id": "s1", "name": "Demo Salesperson", "role": "SALES"}, {"id": "s2", "name": "x", "role": "SALES"}
+    c0 = K.open_case(id="C1", now=now, source="message", text="Nawala po passport ko dito sa Seoul", client="X", client_key="n:x", by="AI", s=S)
+    assert c0["situation"] == "documents" and c0["priority"] == "urgent"
+    assert c0["due_at"] == "2026-11-28T02:00:00.000Z" and c0["reply_due_at"] == "2026-11-27T03:00:00.000Z"
+    with pytest.raises(K.CaseError):
+        K.case_act(c0, "reply", s1, {}, now, S)
+    c1 = K.case_act(c0, "assign", s1, {"assignee": {"id": "s1", "name": "Demo Salesperson"}}, now, S)
+    with pytest.raises(K.CaseError):
+        K.case_act(c1, "assign", s2, {"assignee": {"id": "s2", "name": "x"}}, now, S)
+    c1 = K.case_act(c1, "solve", s1, {}, "2026-11-27T20:00:00.000Z", S)
+    assert K.case_view(c1, now)["on_time"] and c1["first_reply_at"]
+    assert K.auto_case_for("customer_feedback", "", 2)["source"] == "feedback" and K.auto_case_for("customer_feedback", "", 4) is None
+    assert K.auto_case_for("customer_question", "Ang tagal po ng reply ninyo, wala pa rin update!", None)["source"] == "request"
+    from app.quotes.history import generate_history
+    hist = generate_history(now, {"sales": [s1, s2], "agent": {"id": "a1", "name": "A", "role": "AGENT"}}, 1, S)
+    rq = next(r for r in hist if r["status"] == "lost")
+    assert K.request_clock({**rq, "status": "ai_recommended", "events": rq["events"][:2], "customer_question": None}, now, S)["stage"] == "overdue"

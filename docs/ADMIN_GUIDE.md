@@ -16,6 +16,25 @@ destination, salesperson and stage, the themes customers complain about (with ex
 Filter by period (30 days, 90 days, this year, all), destination or salesperson, and download every customer message as a CSV for Excel.
 Agents and salespeople cannot open these pages.
 
+## Response Clock
+Urgent cases (stranded travellers, lost passports, transfers, hotels, refunds, anyone on a trip now) must be solved within 24 hours;
+important ones within 48 hours. The colour changes every quarter of the time: green, yellow, orange, red (the owner is alerted on
+the dashboard), then overdue. Take a case, tick the playbook steps, press "I replied" and "Solved". You can change the targets,
+the watched words and the weekly report emails in **Settings**.
+
+## Connecting Facebook and Messenger
+1. Create a Meta app at developers.facebook.com and add PAPH's Facebook Page.
+2. Ask for these permissions in **App Review**: `pages_read_engagement`, `pages_read_user_content` (comments) and
+   `pages_messaging` (Messenger). Meta must approve them before real messages can be read.
+3. Make a long-lived Page access token and put `META_PAGE_ID` and `META_PAGE_ACCESS_TOKEN` in `backend/.env`, then restart.
+4. **Connections** shows "Connected"; new comments and chats arrive every 30 minutes (or press Sync).
+Real names are shown as a short code ("Client 7F3A") while `ANONYMIZE_AUTHORS=true`. Imported files keep the names written in them.
+
+## Weekly report by email
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `backend/.env` (for example a Google Workspace or
+Zoho mailbox with an app password). The report goes out every Monday at 8:00 AM Philippine time to the emails in Settings, or to
+every Owner account when that box is empty. Without SMTP it is only written to the server log.
+
 ## Settings (Owner only)
 - **Service fee** (default 10%): PAPH's fee added to every AI estimate and new offer.
 - **Minimum margin** (default 8%): below this the agent must write a reason to approve. Below cost can never be approved.

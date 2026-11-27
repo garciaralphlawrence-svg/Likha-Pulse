@@ -3,7 +3,9 @@ import { AlertTriangle, ArrowLeft, Check, CheckCircle2, FileText, HelpCircle, Pl
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
-import type { RequestDetail as RD, StaffMember } from "../api/types";
+import type { CaseView, RequestDetail as RD, StaffMember } from "../api/types";
+import { ClockChip, StagePill, SuggestedReplies, timeLeft } from "../components/clock";
+import { replyKey } from "../quote/care";
 import RecommendationView, { BudgetBox, Compare, Verdict } from "../components/Recommendation";
 import { Card, ErrorBox, Modal, SampleTag, Spinner, StatusBadge, Tag } from "../components/ui";
 import { useAuth } from "../lib/auth";
@@ -11,7 +13,7 @@ import { ago, fmtDate, peso } from "../lib/format";
 import { MONTHS, fmtDay, paxText, destByCode } from "../quote/engine";
 import { ACTIONS, ActionCode, ActionPayload, DEFAULT_SETTINGS, LOST_REASONS, OfferLine, STATUSES, Settings, totals } from "../quote/workflow";
 
-const EVENT_WORD: Record<string, string> = { save_offer: "Offer saved", assign: "Assigned", customer_question: "Customer asked a question", answer: "Question answered", send: "Sent to customer" };
+const EVENT_WORD: Record<string, string> = { reply: "Replied to the customer", customer_feedback: "Customer rated the trip", save_offer: "Offer saved", assign: "Assigned", customer_question: "Customer asked a question", answer: "Question answered", send: "Sent to customer" };
 const ROLE_WORD: Record<string, string> = { ADMIN: "Owner", AGENT: "Agent", SALES: "Sales", CUSTOMER: "Customer", SYSTEM: "AI" };
 const num = (s: string) => { const n = parseInt(s.replace(/[^\d-]/g, ""), 10); return Number.isFinite(n) ? n : 0; };
 
@@ -58,11 +60,15 @@ export default function RequestDetail() {
   const [reason, setReason] = useState("");
   const [pick, setPick] = useState<string | null>(null);
   const [flash, setFlash] = useState("");
+  const [cases, setCases] = useState<CaseView[]>([]);
+  const [replying, setReplying] = useState(false);
+  const loadCases = () => Promise.all([api.cases("open"), api.cases("solved")]).then(([a, b]) => setCases([...a.items, ...b.items].filter((c) => c.request_id === id))).catch(() => undefined);
 
   useEffect(() => {
     api.request(id!).then((x) => { setR(x); setPick(x.recommendation.recommended); }).catch(setErr);
     api.settings().then(setSettings).catch(() => undefined);
     api.staff().then(setStaff).catch(() => undefined);
+    loadCases();
   }, [id]);
   useEffect(() => { if (r?.offer) setDraft({ lines: r.offer.lines.map((l) => ({ ...l })), discount: r.offer.discount, notes: r.offer.notes }); else setDraft(null); }, [r?.offer?.version, r?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -94,7 +100,7 @@ export default function RequestDetail() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold tracking-wide text-ink-400">{r.ref}</span><StatusBadge status={r.status} />{r.is_sample && <SampleTag />}
-            {r.waiting_hours >= 24 && <Tag tone="red">Waiting {r.waiting_hours}h</Tag>}{r.expired && <Tag tone="red">Expired: recheck rates</Tag>}</div>
+            {r.clock && <ClockChip clock={r.clock} now={new Date().toISOString()} />}{r.expired && <Tag tone="red">Expired: recheck rates</Tag>}</div>
           <h1 className="mt-1 font-display text-3xl font-semibold leading-tight sm:text-4xl">{r.customer.name}</h1>
           <p className="text-sm text-ink-500">{r.customer.contact} · sent {ago(r.created_at)}</p>
         </div>
@@ -121,6 +127,21 @@ export default function RequestDetail() {
               {r.input.travel_date ? ` · leaving ${fmtDay(r.input.travel_date)}` : r.input.month ? ` · ${MONTHS[r.input.month - 1]}` : ""}{r.input.budget ? ` · budget ${peso(r.input.budget)}${r.input.budget_per_person ? " per person" : ""}` : ""}</p>
             {r.addons.length > 0 && <p className="mt-1 text-sm text-ink-500">Add-ons: {r.addons.map((c) => r.recommendation.addons.find((a) => a.code === c)?.label).filter(Boolean).join(", ")}</p>}
           </Card>
+
+          {can("reply") && (r.clock || replying) && (
+            <div className="rounded-2xl border border-ivory-200 bg-white p-4">
+              {replying ? (
+                <SuggestedReplies situation={r.customer_question ? replyKey(r.customer_question.text) : r.status === "changes_requested" ? "changes" : r.offer ? "offer_follow_up" : "price"}
+                  ctx={{ name: r.customer.name.replace(/^Sample: /, ""), ref: r.ref, range: r.recommendation.options.find((o) => o.code === r.recommendation.recommended) ? `${peso(r.recommendation.options.find((o) => o.code === r.recommendation.recommended)!.pp_low)} to ${peso(r.recommendation.options.find((o) => o.code === r.recommendation.recommended)!.pp_high)}` : undefined, valid: r.approval ? fmtDay(r.approval.valid_until.slice(0, 10)) : undefined }}
+                  onReplied={() => { setReplying(false); run("reply", {}, "Reply recorded. The clock has stopped."); }} />
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-ink-600">{r.clock ? <>The customer is waiting for a reply ({r.clock.label.toLowerCase()}): <b>{timeLeft(r.clock.due_at, new Date().toISOString())}</b>.</> : "Reply to the customer."}</p>
+                  <button className="btn-primary" onClick={() => setReplying(true)}>Reply to the customer</button>
+                </div>
+              )}
+            </div>
+          )}
 
           {r.customer_question && (
             <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gold-300 bg-gold-50 p-4">
@@ -212,6 +233,18 @@ export default function RequestDetail() {
               {can("mark_lost") && <button className="btn-ghost" onClick={() => setModal("lost")}>Mark as lost</button>}
             </div>
           )}
+
+          <Card title="Response Clock cases" subtitle="Customer issues on this request"
+            action={<button className="btn-secondary py-1.5" disabled={busy} onClick={async () => {
+              const text = window.prompt("What is the customer's problem?", r.customer_question?.text ?? "");
+              if (!text?.trim()) return;
+              try { await api.openCase({ request_id: r.id, text: text.trim(), source: "manual" }); loadCases(); setFlash("Case opened. The clock has started."); } catch (x) { setErr(x); }
+            }}>Open a case</button>}>
+            {cases.length ? <ul className="space-y-2">{cases.map((c) => (
+              <li key={c.id}><Link to={`/staff/clock?open=${c.id}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-ivory-200 bg-white px-3 py-2 text-sm hover:border-gold-300">
+                <StagePill stage={c.stage} small /><span className="font-medium">{c.situation_label}</span><span className="min-w-0 flex-1 truncate text-ink-500">“{c.text}”</span><span className="text-xs text-ink-400">{c.owner?.name ?? "Nobody yet"}</span>
+              </Link></li>))}</ul> : <p className="text-sm text-ink-400">No cases. Unhappy messages from this customer open one automatically.</p>}
+          </Card>
 
           <Card title="History" subtitle="Every step, who did it and why.">
             <ol className="relative space-y-4 border-l border-ivory-300 pl-5">

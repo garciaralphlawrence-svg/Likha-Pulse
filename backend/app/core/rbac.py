@@ -8,7 +8,10 @@ PERMISSIONS = {
     "users.manage": "Add, edit and turn off staff accounts",
     "settings.manage": "Change service fee, minimum margin, validity and payment terms",
     "audit.view": "See the activity log",
-    "owner.view": "Owner dashboards: customer sentiment, team performance, revenue and margin",
+    "owner.view": "Owner dashboards: customer sentiment, team performance, revenue, keyword watch, team and weekly reports",
+    "replies.manage": "Add, edit and delete suggested replies",
+    "import.manage": "Import past customer messages from Excel or CSV",
+    "integrations.manage": "Sync Facebook Page comments and Messenger",
 }
 
 ROLES = {

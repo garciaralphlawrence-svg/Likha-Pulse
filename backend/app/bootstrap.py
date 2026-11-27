@@ -8,7 +8,8 @@ from app.core.config import get_settings
 from app.core.rbac import PERMISSIONS, ROLES
 from app.core.security import hash_password
 from app.models import Permission, Role, TravelRequest, User
-from app.services.requests import sample_staff, seed_history, seed_samples
+from app.services.care_store import seed_templates
+from app.services.requests import sample_staff, seed_care, seed_history, seed_samples
 from app.services.settings_service import quote_settings
 
 log = logging.getLogger(__name__)
@@ -47,8 +48,10 @@ def ensure_superadmin(db: Session) -> None:
 def bootstrap(db: Session) -> None:
     ensure_rbac(db)
     ensure_superadmin(db)
+    seed_templates(db)
     if get_settings().seed_sample_data and not db.scalar(select(func.count(TravelRequest.id))):
         settings, people = quote_settings(db), sample_staff(db)
         h = seed_history(db, settings, people)
+        msgs, cs = seed_care(db, settings, people)
         n = seed_samples(db, settings, people)
-        log.info("Loaded %s labeled sample past requests and %s live sample requests.", h, n)
+        log.info("Loaded labeled sample data: %s past requests, %s messages, %s cases, %s live requests.", h, msgs, cs, n)

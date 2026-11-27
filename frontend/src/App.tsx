@@ -18,6 +18,15 @@ const Audit = lazy(() => import("./pages/Audit"));
 const Sentiment = lazy(() => import("./pages/Sentiment"));
 const Performance = lazy(() => import("./pages/Performance"));
 const Revenue = lazy(() => import("./pages/Revenue"));
+const ResponseClock = lazy(() => import("./pages/ResponseClock"));
+const Inbox = lazy(() => import("./pages/Inbox"));
+const Clients = lazy(() => import("./pages/Clients"));
+const Replies = lazy(() => import("./pages/Replies"));
+const KeywordWatch = lazy(() => import("./pages/KeywordWatch"));
+const TeamReport = lazy(() => import("./pages/TeamReport"));
+const WeeklyReport = lazy(() => import("./pages/WeeklyReport"));
+const ImportPage = lazy(() => import("./pages/Import"));
+const Connections = lazy(() => import("./pages/Connections"));
 
 function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const { can } = useAuth();
@@ -40,6 +49,15 @@ function Staff() {
           <Route path="sentiment" element={<Guard perm="owner.view"><Sentiment /></Guard>} />
           <Route path="performance" element={<Guard perm="owner.view"><Performance /></Guard>} />
           <Route path="revenue" element={<Guard perm="owner.view"><Revenue /></Guard>} />
+          <Route path="clock" element={<Guard perm="requests.view"><ResponseClock /></Guard>} />
+          <Route path="inbox" element={<Guard perm="requests.view"><Inbox /></Guard>} />
+          <Route path="clients/:key" element={<Guard perm="requests.view"><Clients /></Guard>} />
+          <Route path="replies" element={<Guard perm="requests.view"><Replies /></Guard>} />
+          <Route path="watch" element={<Guard perm="owner.view"><KeywordWatch /></Guard>} />
+          <Route path="team-report" element={<Guard perm="owner.view"><TeamReport /></Guard>} />
+          <Route path="weekly" element={<Guard perm="owner.view"><WeeklyReport /></Guard>} />
+          <Route path="import" element={<Guard perm="import.manage"><ImportPage /></Guard>} />
+          <Route path="connections" element={<Guard perm="requests.view"><Connections /></Guard>} />
           <Route path="rates" element={<Guard perm="catalog.view"><Rates /></Guard>} />
           <Route path="team" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
           <Route path="settings" element={<Guard perm="settings.manage"><SettingsPage /></Guard>} />

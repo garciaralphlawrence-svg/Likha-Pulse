@@ -1,0 +1,177 @@
+{
+  "note": "Travel playbooks for the Response Clock (customer issue cases). Shared by backend/app/quotes/clock.py and frontend/src/quote/clock.ts.",
+  "situations": {
+    "emergency": {
+      "label": "On-trip emergency",
+      "steps": [
+        "Call the traveler now and confirm they are safe",
+        "Contact the operator, driver or hotel on site",
+        "Arrange help: pickup, clinic or another ride",
+        "Send the traveler an update every hour until solved"
+      ]
+    },
+    "documents": {
+      "label": "Lost passport or documents",
+      "steps": [
+        "Call the traveler and confirm where they are",
+        "Advise a police report at the nearest station",
+        "Coordinate with the embassy or DFA for a travel document",
+        "Rebook flights or hotel nights if needed"
+      ]
+    },
+    "transfer": {
+      "label": "Flight or transfer problem",
+      "steps": [
+        "Confirm the flight or pickup details",
+        "Contact the airline, driver or transfer provider",
+        "Give the traveler the new time or a replacement ride",
+        "Check if the rest of the itinerary is affected"
+      ]
+    },
+    "hotel": {
+      "label": "Hotel problem",
+      "steps": [
+        "Call the hotel's front desk",
+        "Ask for a room change or an immediate fix",
+        "Offer another hotel if not fixed today",
+        "Confirm with the traveler that it is solved"
+      ]
+    },
+    "refund": {
+      "label": "Refund or payment",
+      "steps": [
+        "Check the payment record (GCash, card or bank)",
+        "Confirm the amount and refund policy with the traveler",
+        "Send the refund request to accounting",
+        "Send the traveler the reference number"
+      ]
+    },
+    "visa": {
+      "label": "Visa or travel documents",
+      "steps": [
+        "Check the application status",
+        "Tell the traveler the status and the next date",
+        "Ask for any missing requirements",
+        "Confirm once the visa is released"
+      ]
+    },
+    "booking": {
+      "label": "Booking or confirmation",
+      "steps": [
+        "Find the booking in the system",
+        "Fix or resend the confirmation and e-ticket",
+        "Confirm the details with the traveler"
+      ]
+    },
+    "tour": {
+      "label": "Tour experience",
+      "steps": [
+        "Reply and acknowledge the concern",
+        "Ask the guide or coordinator what happened",
+        "Offer a fix or a goodwill gesture",
+        "Confirm the traveler is satisfied"
+      ]
+    },
+    "general": {
+      "label": "Customer concern",
+      "steps": [
+        "Reply and acknowledge the concern",
+        "Find out what happened from the team",
+        "Offer a solution",
+        "Confirm the customer is satisfied"
+      ]
+    },
+    "changes": {
+      "label": "Change or cancel request",
+      "steps": [
+        "Read exactly what the customer wants changed",
+        "Check new prices and availability",
+        "Update the offer and send it for approval",
+        "Tell the customer the new offer is ready"
+      ]
+    }
+  },
+  "sample_cases": [
+    {
+      "client": "Sample: Fe and Tony",
+      "channel": "messenger",
+      "hours_ago": 0.6,
+      "owner": null,
+      "reply_after_min": null,
+      "steps_done": 0,
+      "text": "Naiwan po kami ng bangka sa island hopping sa El Nido, stranded kami dito sa isla. Pakitulungan po."
+    },
+    {
+      "client": "Sample: Ivan S.",
+      "channel": "messenger",
+      "hours_ago": 8,
+      "owner": "sales",
+      "reply_after_min": 18,
+      "steps_done": 2,
+      "text": "Nawala po passport ko dito sa Seoul, ano po gagawin ko? Flight na namin sa Biyernes."
+    },
+    {
+      "client": "Sample: Joanna and Mark",
+      "channel": "facebook_page",
+      "hours_ago": 14,
+      "owner": "sales2",
+      "reply_after_min": 40,
+      "steps_done": 1,
+      "text": "Naaksidente yung van namin papuntang hotel sa Bali. May sugat po yung kasama namin."
+    },
+    {
+      "client": "Sample: Ocampo family",
+      "channel": "messenger",
+      "hours_ago": 20,
+      "owner": "sales",
+      "reply_after_min": 130,
+      "steps_done": 1,
+      "text": "Nag-food poisoning kami after ng kasamang lunch sa El Nido tour. Tatlo na kaming nagsusuka."
+    },
+    {
+      "client": "Sample: Cruz barkada",
+      "channel": "messenger",
+      "hours_ago": 5,
+      "owner": "sales2",
+      "reply_after_min": 25,
+      "steps_done": 1,
+      "text": "Sira ang aircon ng hotel room namin sa Boracay at walang sumasagot sa front desk. Hindi kami makatulog."
+    },
+    {
+      "client": "Sample: Lea S.",
+      "channel": "messenger",
+      "hours_ago": 16,
+      "owner": null,
+      "reply_after_min": null,
+      "steps_done": 0,
+      "text": "Charged twice po ako sa GCash para sa Singapore package, paki-check naman po. Wala pa rin pong sagot."
+    },
+    {
+      "client": "Sample: Dianne P.",
+      "channel": "facebook_page",
+      "hours_ago": 30,
+      "owner": "agent",
+      "reply_after_min": 180,
+      "steps_done": 2,
+      "text": "Follow up lang po sa refund ng cancelled Japan tour ko, wala pa rin hanggang ngayon."
+    },
+    {
+      "client": "Sample: Ramos family",
+      "channel": "messenger",
+      "hours_ago": 14,
+      "owner": "sales",
+      "reply_after_min": 200,
+      "steps_done": 1,
+      "text": "Ang tagal po ng reply ninyo, 2 days na wala pa rin update sa Hong Kong quote namin."
+    },
+    {
+      "client": "Sample: Grace L.",
+      "channel": "messenger",
+      "hours_ago": 52,
+      "owner": "sales",
+      "reply_after_min": 300,
+      "steps_done": 1,
+      "text": "Pa-follow up po, wala pa rin yung booking confirmation email ko for Taiwan. Flight na namin bukas."
+    }
+  ]
+}

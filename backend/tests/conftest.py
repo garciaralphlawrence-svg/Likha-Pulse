@@ -12,6 +12,7 @@ os.environ.update({
     "SUPERADMIN_NAME": "Test Owner",
     "SEED_SAMPLE_DATA": "true",
     "PUBLIC_RATE_LIMIT": "1000",
+    "ENABLE_SCHEDULER": "false",
 })
 
 from fastapi.testclient import TestClient  # noqa: E402

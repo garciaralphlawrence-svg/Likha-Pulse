@@ -8,14 +8,20 @@ import math
 import re
 
 from app.quotes.engine import dest_by_code
-from app.quotes.workflow import ACTIONS, LOST_REASONS, STATUSES, allowed, hours_waiting, is_expired, quotation_terms
+from app.quotes.clock import ms, request_clock
+from app.quotes.workflow import ACTIONS, DEFAULT_SETTINGS, LOST_REASONS, STATUSES, allowed, is_expired, quotation_terms
 
 QUEUE = ["new", "ai_recommended", "offer_drafted", "changes_requested"]
 QUOTED = ["approved", "sent", "accepted", "booked"]
 VIEWS = ("queue", "approval", "open", "closed", "all")
 
 
-def summary(r: dict, now: str) -> dict:
+def _waited(clock, now: str) -> int:
+    return math.floor((ms(now) - ms(clock["opened_at"])) / 3600000) if clock else 0
+
+
+def summary(r: dict, now: str, settings: dict = DEFAULT_SETTINGS) -> dict:
+    clock = request_clock(r, now, settings)
     rec = r["recommendation"]
     code = (r.get("offer") or {}).get("option") or rec.get("recommended")
     if r.get("offer"):
@@ -31,14 +37,15 @@ def summary(r: dict, now: str) -> dict:
         "ai_low": opt["total_low"] if opt else None, "ai_high": opt["total_high"] if opt else None,
         "offer_price": t["price"] if t else None, "margin_pct": t["margin_pct"] if t else None,
         "flags": {
-            "waiting_hours": math.floor(hours_waiting(r, now)), "expired": is_expired(r, now), "question": bool(r.get("customer_question")),
+            "waiting_hours": _waited(clock, now), "expired": is_expired(r, now), "question": bool(r.get("customer_question")),
             "below_cost": bool(t and t["below_cost"]), "low_margin": bool(t and t["low_margin"]),
             "budget_too_low": (rec.get("budget") or {}).get("status") == "over",
         },
+        "clock": clock,
     }
 
 
-def list_view(all_reqs: list[dict], view: str, now: str) -> list[dict]:
+def list_view(all_reqs: list[dict], view: str, now: str, settings: dict = DEFAULT_SETTINGS) -> list[dict]:
     def keep(r):
         if view == "queue":
             return r["status"] in QUEUE or (bool(r.get("customer_question")) and STATUSES[r["status"]]["open"])
@@ -50,7 +57,7 @@ def list_view(all_reqs: list[dict], view: str, now: str) -> list[dict]:
             return not STATUSES[r["status"]]["open"]
         return True
 
-    rows = [summary(r, now) for r in all_reqs if keep(r)]
+    rows = [summary(r, now, settings) for r in all_reqs if keep(r)]
     if view in ("queue", "approval"):
         return sorted(rows, key=lambda x: (-x["flags"]["waiting_hours"], x["created_at"]))
     return sorted(rows, key=lambda x: x["updated_at"], reverse=True)
@@ -58,7 +65,8 @@ def list_view(all_reqs: list[dict], view: str, now: str) -> list[dict]:
 
 def detail(r: dict, role: str, settings: dict, now: str) -> dict:
     show = r["status"] in QUOTED and bool(r.get("approval")) and bool(r.get("offer"))
-    return {**r, "allowed": allowed(r, role), "expired": is_expired(r, now), "waiting_hours": math.floor(hours_waiting(r, now)),
+    clock = request_clock(r, now, settings)
+    return {**r, "allowed": allowed(r, role), "expired": is_expired(r, now), "waiting_hours": _waited(clock, now), "clock": clock,
             "terms": quotation_terms(r, settings, now) if show else None}
 
 
@@ -102,7 +110,8 @@ def public_view(r: dict, settings: dict, now: str) -> dict:
     }
 
 
-def dashboard(all_reqs: list[dict], now: str) -> dict:
+def dashboard(all_reqs: list[dict], now: str, settings: dict = DEFAULT_SETTINGS) -> dict:
+    clocks = [c for c in (request_clock(r, now, settings) for r in all_reqs) if c]
     def count(s):
         return sum(1 for r in all_reqs if r["status"] == s)
 
@@ -126,7 +135,8 @@ def dashboard(all_reqs: list[dict], now: str) -> dict:
         "by_status": [{"status": s, "label": STATUSES[s]["staff"], "count": count(s)} for s in STATUSES if s != "new"],
         "top_destinations": sorted(dest.values(), key=lambda x: (-x["count"], x["name"]))[:6],
         "lost_reasons": sorted([{"reason": k, "label": LOST_REASONS[k], "count": c} for k, c in reasons.items()], key=lambda x: -x["count"]),
-        "awaiting_decision": list_view(all_reqs, "approval", now),
-        "waiting_long": sum(1 for r in all_reqs if hours_waiting(r, now) >= 24),
+        "awaiting_decision": list_view(all_reqs, "approval", now, settings),
+        "waiting_long": sum(1 for c in clocks if c["stage"] == "overdue"),
+        "request_clock": {k: sum(1 for c in clocks if c["stage"] == k) for k in ("overdue", "red", "orange", "yellow", "green")},
         "sample_count": sum(1 for r in all_reqs if r["is_sample"]),
     }

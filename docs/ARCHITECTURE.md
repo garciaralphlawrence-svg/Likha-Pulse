@@ -20,6 +20,18 @@
    mood by destination, salesperson and stage, themes customers complain about, team performance (response time, approval and booking
    rates, margin) and revenue (booked, margin, pipeline, funnel, lost reasons). Logic: `app/quotes/owner.py`.
 
+## Response Clock and customer care
+- Every customer issue becomes a **case** with a deadline: urgent 24 hours, important 48 hours (settings). The colour changes as
+  time runs out: green (under 25% used), yellow, orange, red (escalated to the owner), overdue. Quotation requests and unanswered
+  messages run on the same clock (reply within 24 hours by default).
+- Cases open automatically from unhappy Facebook/Messenger messages, unhappy customer questions or change requests, and 1-2 star
+  after-trip ratings; staff can also open one. Each case has a playbook checklist (`playbooks.json`), an owner and a trail.
+- Team tools: client history, suggested replies (`reply_templates.json`), keyword watch, team report (CSV), weekly report
+  (Monday 8 AM Philippine time, by email when SMTP is set), and importing past messages from Excel/CSV.
+- Facebook Page comments and Messenger come in through Meta's official Graph API (`app/integrations/platforms.py`) every
+  30 minutes once connected. Real names are stored as a salted code ("Client 7F3A") while `ANONYMIZE_AUTHORS=true`;
+  imported files keep the names written in the file, because the owner chose to import them.
+
 ## Rules (enforced in one place: `app/quotes/workflow.py`, twin of `frontend/src/quote/workflow.ts`)
 - One request = one reference number (`PAPH-2026-0001`, counter per year, row-locked).
 - Statuses: AI recommended -> Offer being drafted -> Waiting for approval -> Approved / Changes requested / Declined -> Sent to customer
@@ -39,6 +51,9 @@
 | `backend/app/quotes/workflow.py` | Requests, offers, totals, guard rules, quotation terms |
 | `backend/app/quotes/owner.py` | Owner report: briefing, sentiment, team, revenue, CSV of customer messages |
 | `backend/app/quotes/history.py` + `sample_history.json` | ~6 months of seeded sample past requests (same random sequence as the TypeScript twin) |
+| `backend/app/quotes/clock.py` | Response Clock: stages, cases, playbook steps, clock stats |
+| `backend/app/quotes/care.py` | Messages, suggested replies, keyword watch, client history, team and weekly reports, imports, sample messages |
+| `backend/app/integrations/` | Facebook Page comments and Messenger (official Graph API; not connected without credentials) |
 | `backend/app/sentiment/` | Free customer sentiment engine and its word lists |
 | `backend/app/quotes/views.py` | Sales queue rows, customer tracking view (never shows costs or margin), dashboard |
 | `backend/app/api/public.py` | Customer endpoints (no login, rate-limited) |
@@ -56,6 +71,10 @@ in `frontend/`.
 | `users`, `roles`, `permissions`, `role_permissions` | Staff accounts and roles ADMIN (Owner), AGENT, SALES |
 | `travel_requests` | One row per request: lookup columns (ref, status, customer, destination, assignee, sample flag) + `data` JSON with the full request |
 | `ref_counters` | Last reference number per year |
+| `customer_messages` | Facebook comments, Messenger chats and imported messages (`data` JSON; `external_id` prevents duplicates) |
+| `cases` | Response Clock cases (`CASE-0001`), linked to a request or a message |
+| `reply_templates` | Suggested replies (defaults seeded from `reply_templates.json`) |
+| `counters` | Running numbers for cases and messages |
 | `audit_logs` | Who did what (sign-ins, every workflow step, user and setting changes) |
 | `system_settings` | Quotation terms: service fee %, minimum margin %, validity days, deposit %, balance due days |
 

@@ -24,7 +24,7 @@ def actor_of(user: User) -> dict:
 @router.get("")
 def list_requests(view: Literal["queue", "approval", "open", "closed", "all"] = "queue",
                   user: User = Depends(require("requests.view")), db: Session = Depends(get_db)):
-    return views.list_view(all_requests(db), view, W.now_iso())
+    return views.list_view(all_requests(db), view, W.now_iso(), quote_settings(db))
 
 
 @router.get("/{rid}")

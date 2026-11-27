@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, management, owner, public
+from app.api import auth, care, management, owner, public
 from app.api import requests as requests_api
 from app.core.config import get_settings
 from app.db import Base, SessionLocal, engine
@@ -24,7 +24,13 @@ async def lifespan(app: FastAPI):
         add_missing_sqlite_columns()
     with SessionLocal() as db:
         bootstrap(db)
+    sched = None
+    if settings.enable_scheduler:
+        from app.jobs import start_scheduler
+        sched = start_scheduler()
     yield
+    if sched:
+        sched.shutdown(wait=False)
 
 
 app = FastAPI(title="PAPH Travel and Tours API", version="2.0.0", lifespan=lifespan,
@@ -50,6 +56,7 @@ app.include_router(public.router)
 app.include_router(requests_api.router)
 app.include_router(management.router)
 app.include_router(owner.router)
+app.include_router(care.router)
 
 
 @app.get("/api/health", tags=["system"])
