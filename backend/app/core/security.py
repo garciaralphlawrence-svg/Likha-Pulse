@@ -45,12 +45,3 @@ def new_reset_token() -> tuple[str, str]:
 
 def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
-
-
-def anonymize(author: str | None) -> str:
-    s = get_settings()
-    if not author:
-        return "anonymous"
-    if not s.anonymize_authors:
-        return author[:80]
-    return "user-" + hashlib.sha256((s.author_hash_salt + author).encode()).hexdigest()[:10]

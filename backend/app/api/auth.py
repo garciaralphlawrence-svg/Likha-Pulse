@@ -12,7 +12,6 @@ from app.core.security import (create_access_token, hash_password, hash_token, n
                                validate_password_strength, verify_password)
 from app.db import get_db
 from app.models import User
-from app.services.notifications import _email  # reuse SMTP helper
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 log = logging.getLogger(__name__)
@@ -80,10 +79,8 @@ def forgot(body: ForgotIn, request: Request, db: Session = Depends(get_db)):
         raw, hashed = new_reset_token()
         user.reset_token_hash, user.reset_token_expires = hashed, datetime.now(timezone.utc) + timedelta(minutes=30)
         db.commit()
-        s = get_settings()
-        if s.smtp_host:
-            _email(db, "Password reset", f"Use this code to reset your Likha Pulse password within 30 minutes:\n\n{raw}")
-        elif s.environment != "production":
+        # No email is sent from this server: the Owner can also reset passwords in Team. In development the code is logged.
+        if get_settings().environment != "production":
             log.warning("DEV ONLY - password reset token for %s: %s", user.email, raw)
         audit(db, user, "password_reset_requested", "user", user.id, {}, request)
     return {"ok": True, "message": "If the account exists, reset instructions were sent."}

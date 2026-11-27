@@ -1,788 +1,227 @@
-// In-browser implementation of the API for the public demo (GitHub Pages).
-// Everything is stored in this browser's localStorage. All feedback is labeled SAMPLE data.
-// The analysis uses the same rule engine as the server (engine.ts is a port of rule_engine.py).
-import type { Api, AuditRow, CaseAction, CaseInfo, CaseStats, CaseUpdate, Dashboard, FeedbackDetail, FeedbackItem, Filters, Insight, InsightSummary, Me, Notice, ReplyTemplate, ReportRow, SettingsData, TeamReport, TeamRow, TeamStat, UserRow, WeeklyReport } from "../api/types";
-import { DEFAULT_CLOCK, SITUATIONS, dur, situationOf, stageOf, travelingNow } from "../lib/clock";
-import { DEFAULT_REPLIES, REPLY_LANGUAGES, REPLY_SITUATIONS, channelCode, cleanWords, clientLabel, clientVerdict, mins, parseDate, replyKey, watchHits } from "../lib/teamtools";
-import { fullAnalysis, normalize } from "./engine";
+// In-browser version of the API for the public demo (GitHub Pages). Everything is stored in this browser only.
+// Every request seeded here is SAMPLE data, priced from the SAMPLE rate catalog (src/quote/catalog.json).
+import type { Api, AuditRow, Me, StaffMember, UserRow } from "../api/types";
+import { parseRequest } from "../quote/engine";
+import { contactMatches, dashboard, detail, list, publicView } from "../quote/views";
+import { ACTIONS, ActionCode, ActionPayload, Actor, DEFAULT_SETTINGS, Role, Settings, TravelRequest, apply, createRequest } from "../quote/workflow";
 
-const KEY = "pulse.demo.v7"; // v7: Facebook comments + Messenger only, team tools
-const SESSION = "pulse.demo.session";
-const PLATFORMS: Record<string, string> = { facebook_page: "Facebook Page comments", messenger: "Facebook Messenger", manual: "Manual entry", import: "Imported file" };
-const ROLE_PERMS: Record<string, string[]> = {
-  SUPER_ADMIN: ["dashboard.view", "feedback.view", "feedback.manage", "feedback.review", "insights.generate", "reports.view", "reports.generate", "integrations.manage", "users.manage", "settings.manage", "audit.view"],
-  ADMIN: ["dashboard.view", "feedback.view", "feedback.manage", "feedback.review", "insights.generate", "reports.view", "reports.generate", "audit.view"],
-  ANALYST: ["dashboard.view", "feedback.view", "feedback.review", "insights.generate", "reports.view", "reports.generate"],
-  VIEWER: ["dashboard.view", "reports.view"],
+const KEY = "paph.demo.v1";
+const SESSION = "paph.demo.session";
+const PERMS: Record<string, string[]> = {
+  ADMIN: ["dashboard.view", "requests.view", "requests.sell", "requests.approve", "catalog.view", "users.manage", "settings.manage", "audit.view"],
+  AGENT: ["dashboard.view", "requests.view", "requests.approve", "catalog.view", "audit.view"],
+  SALES: ["requests.view", "requests.sell", "catalog.view"],
 };
 export const DEMO_ACCOUNTS = [
-  { email: "admin@demo.likha", password: "Admin2026!", role: "SUPER_ADMIN", full_name: "Demo Super Admin" },
-  { email: "analyst@demo.likha", password: "Analyst2026!", role: "ANALYST", full_name: "Demo Analyst" },
-  { email: "viewer@demo.likha", password: "Viewer2026!", role: "VIEWER", full_name: "Demo Viewer" },
+  { email: "admin@demo.paph", password: "Admin2026!", role: "ADMIN", full_name: "Demo Owner", label: "Owner" },
+  { email: "sales@demo.paph", password: "Sales2026!", role: "SALES", full_name: "Demo Salesperson", label: "Salesperson" },
+  { email: "agent@demo.paph", password: "Agent2026!", role: "AGENT", full_name: "Demo Travel Agent", label: "Travel agent" },
 ];
 
 interface DemoUser extends UserRow { pw: string }
-type CaseData = Omit<CaseInfo, "id" | "content" | "platform" | "platform_name" | "author" | "priority" | "topic" | "is_sample" | "headline">;
-type Derived = "client" | "watch_hits" | "client_messages";
-interface Rec extends Omit<FeedbackDetail, Derived> { hash: string; case?: CaseData; author_name: string | null; resolved_at: string | null }
-interface Store {
-  feedback: Rec[]; notifications: (Notice & { dedupe: string; read_by: string[] })[]; reports: (ReportRow & { filters: Filters; sample?: boolean })[];
-  audit: AuditRow[]; users: DemoUser[]; settings: SettingsData; insights: Insight[]; seq: number; seeded_at?: string; templates: ReplyTemplate[];
-}
-
-const DEFAULT_SETTINGS: SettingsData = {
-  sentiment_thresholds: { negative_max: -25, positive_min: 25 }, confidence_thresholds: { high: 0.9, moderate: 0.7 },
-  ai_provider: { provider: "rule", claude_model: "claude-opus-5-5", api_key_set: false },
-  alerts: { negative_spike_pct: 30, repeated_complaint_count: 3, unresolved_days: 3, email_enabled: false },
-  retention: { feedback_days: 730, audit_days: 1095 },
-  response_clock: { ...DEFAULT_CLOCK },
-  keyword_watch: { words: ["refund", "scam", "cancel", "estafa", "Boracay"] },
-  weekly_report: { enabled: true, recipients: "", last_sent_week: "" },
-};
-
-// ---------- sample data (same templates and logic as backend/app/integrations/sample_data.py) ----------
-import SAMPLE from "./sample_templates.json";
-type Tpl = [string, number | null][];
-const TEMPLATES: Record<string, Tpl> = { facebook_page: SAMPLE.facebook_page as Tpl, messenger: SAMPLE.messenger as Tpl };
-const COMPLAINT_HINTS = ["tagal", "wala pa", "seen", "update", "follow up", "refund", "sumasagot", "late", "pila", "rude", "cancelled", "charged", "broken", "unsafe", "error", "rushed", "overpriced"];
-const CLIENTS = 150; // sample travelers, so most of them have several messages (client history)
-
-function rng(seed: number) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-const pick = <T,>(r: () => number, a: T[]) => a[Math.floor(r() * a.length)];
-const pickW = <T,>(r: () => number, items: T[], w: number[]) => { const s = w.reduce((a, b) => a + b, 0); let x = r() * s; for (let i = 0; i < items.length; i++) { x -= w[i]; if (x < 0) return items[i]; } return items[items.length - 1]; };
-
-function generateSample(days = 240): { platform: string; content: string; rating: number | null; author: string; name: string; created_at: string }[] {
-  const r = rng(13); const now = new Date(); const out = [];
-  for (let d = days; d >= 0; d--) {
-    const day = new Date(now.getTime() - d * 86400000);
-    const recent = d < 21, weekend = day.getDay() === 0 || day.getDay() === 6;
-    const count = pickW(r, [1, 2, 3, 4, 5, 6], [1, 2, 3, 3, 2, recent || weekend ? 1.5 : 0.8]);
-    for (let i = 0; i < count; i++) {
-      const platform = pickW(r, ["facebook_page", "messenger"], [0.6, 0.4]);
-      let pool = TEMPLATES[platform];
-      if (recent) pool = [...pool, ...pool.filter(([t]) => COMPLAINT_HINTS.some((w) => t.toLowerCase().includes(w)))];
-      const [tpl, rating] = pick(r, pool);
-      const text = tpl.replace("{svc}", pick(r, SAMPLE.services)).replace("{staff}", pick(r, SAMPLE.staff)).replace("{branch}", pick(r, SAMPLE.branches));
-      let dt = new Date(day); dt.setHours(8 + Math.floor(r() * 14), Math.floor(r() * 60), 0, 0);
-      if (dt > now) dt = new Date(+now - (5 + Math.floor(r() * 85)) * 60000); // never in the future
-      const client = 1 + Math.floor(r() * CLIENTS);
-      out.push({ platform, content: text, rating, author: `sample-customer-${client}`, name: `Sample traveler ${String(client).padStart(3, "0")}`, created_at: dt.toISOString() });
-    }
-  }
-  return out;
-}
-
-// ---------- storage ----------
+interface Store { requests: TravelRequest[]; users: DemoUser[]; audit: AuditRow[]; settings: Settings; seq: number; auditSeq: number; seeded_at: string }
 let store: Store | null = null;
+let me: Me | null = null;
+
 async function sha(s: string) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map((x) => x.toString(16).padStart(2, "0")).join(""); }
 const uid = () => Math.random().toString(16).slice(2, 10) + Date.now().toString(16).slice(-6);
-const anon = (a?: string | null) => (a ? "user-" + simpleHash(a).slice(0, 10) : "anonymous");
-function simpleHash(s: string) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, "0") + s.length.toString(16); }
-
-function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* storage full or blocked: keep in memory */ } }
+const now = () => new Date().toISOString();
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* storage blocked: keep in memory */ } };
+const wait = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 120));
 
 async function db(): Promise<Store> {
   if (store) return store;
   try { const raw = localStorage.getItem(KEY); if (raw) store = JSON.parse(raw); } catch { store = null; }
-  // the sample world is rebuilt once a day, so the response clocks always show realistic, current cases
-  if (store && (!store.seeded_at || Date.now() - +new Date(store.seeded_at) > 20 * 3600000)) store = null;
+  // rebuilt once a day so "waiting since" times and validity dates stay realistic
+  if (store && Date.now() - +new Date(store.seeded_at) > 20 * 3600000) store = null;
   if (!store) {
     const users: DemoUser[] = [];
-    for (const a of DEMO_ACCOUNTS) users.push({ id: uid(), email: a.email, full_name: a.full_name, role: a.role, is_active: true, last_login_at: null, created_at: new Date().toISOString(), pw: await sha(a.password) });
-    store = { feedback: [], notifications: [], reports: [], audit: [], users, settings: structuredClone(DEFAULT_SETTINGS), insights: [], seq: 1, seeded_at: new Date().toISOString(), templates: [] };
-    store.templates = DEFAULT_REPLIES.map((t) => ({ ...t, id: store!.seq++, situation_label: REPLY_SITUATIONS[t.situation], is_default: true, updated_by: "Likha Pulse", updated_at: store!.seeded_at! }));
-    for (const s of generateSample()) ingest(s.platform, s.content, s.rating, s.author, s.created_at, true, false, { name: s.name });
-    seedLibrary(store);
-    periodicChecks();
+    for (const a of DEMO_ACCOUNTS) users.push({ id: uid(), email: a.email, full_name: a.full_name, role: a.role, is_active: true, last_login_at: null, created_at: now(), pw: await sha(a.password) });
+    users.push({ id: uid(), email: "sales2@demo.paph", full_name: "Second Salesperson (sample)", role: "SALES", is_active: true, last_login_at: null, created_at: now(), pw: "" });
+    store = { requests: [], users, audit: [], settings: { ...DEFAULT_SETTINGS }, seq: 1, auditSeq: 1, seeded_at: now() };
+    seed(store);
     save();
   }
   return store;
 }
 
-function analyzeInto(rec: Partial<Rec> & { content: string; rating: number | null }, s: Store): Partial<Rec> {
-  const neg7 = s.feedback.filter((f) => f.sentiment === "negative" && Date.now() - +new Date(f.created_at) < 7 * 86400000);
-  const pre = fullAnalysis(rec.content, rec.rating, s.settings.sentiment_thresholds);
-  const repeated = pre.label === "negative" ? neg7.filter((f) => f.topic === pre.primary_topic).length + 1 : 0;
-  const a = repeated ? fullAnalysis(rec.content, rec.rating, s.settings.sentiment_thresholds, repeated) : pre;
-  const lowConf = a.confidence < s.settings.confidence_thresholds.moderate || a.possible_sarcasm;
-  return {
-    sentiment: a.label, ai_sentiment: a.label, score: a.score, confidence: a.confidence, possible_sarcasm: a.possible_sarcasm, emotion: a.emotion,
-    intent: a.intent, topics: a.topics, topic: a.primary_topic, priority: a.priority as Rec["priority"], engine: a.engine, language: a.language,
-    reason: a.reason, recommended_action: a.recommended_action, intent_reason: a.intent_reason, priority_reason: a.priority_reason,
-    ai: { sentiment: a.label, emotion: a.emotion, intent: a.intent, priority: a.priority }, emotion_scores: a.emotion_scores,
-    model_version: a.model_version, analyzed_at: new Date().toISOString(),
-    review_status: rec.review_status === "reviewed" ? "reviewed" : lowConf ? "pending_review" : "unreviewed",
-    action_status: ["critical", "high"].includes(a.priority) && (rec.action_status ?? "open") === "open" ? "pending_action" : rec.action_status ?? "open",
+const actorOf = (u: { id: string; full_name: string; role: string }): Actor => ({ id: u.id, name: u.full_name, role: u.role as Role });
+function log(s: Store, actor: string, action: string, entity: string, entity_id: string, details: Record<string, unknown> = {}, at = now()) {
+  s.audit.unshift({ id: s.auditSeq++, actor, action, entity, entity_id, details, created_at: at });
+}
+
+// ---------- sample requests, walked through the real workflow ----------
+function seed(s: Store) {
+  const [owner, sales, agent, sales2] = s.users.map(actorOf);
+  const H = 3600000, t = (hoursAgo: number) => new Date(Date.now() - hoursAgo * H).toISOString();
+  const make = (hoursAgo: number, name: string, contact: string, text: string, extra: Record<string, unknown> = {}, addons: string[] = []) => {
+    const parsed = { ...parseRequest(text, t(hoursAgo)), ...extra };
+    const r = createRequest({ id: uid(), seq: s.seq++, now: t(hoursAgo), customer: { name, contact }, raw_text: text, input: parsed, addons, is_sample: true }, s.settings);
+    s.requests.push(r);
+    return r;
   };
-}
-
-/** Same as the server: names are kept for sample data; real names stay private (ANONYMIZE_AUTHORS=true by default).
- *  `history` = imported past feedback: counted in trends, saved as already handled, never opens a case or an alert. */
-function ingest(platform: string, content: string, rating: number | null, author: string | null, created_at: string, sample: boolean, notify = true,
-  opts: { name?: string | null; history?: boolean } = {}): Rec | null {
-  const s = store!;
-  const hash = simpleHash(`${platform}|${author ?? ""}|${normalize(content)}`);
-  if (s.feedback.some((f) => f.platform === platform && f.hash === hash)) return null;
-  const base = { content: content.trim(), rating } as Rec;
-  const rec: Rec = {
-    ...base, ...(analyzeInto(base, s) as Rec), id: uid(), hash, platform, platform_name: PLATFORMS[platform], author: anon(author),
-    author_name: sample ? opts.name ?? null : null, is_imported: !!opts.history, first_reply_at: null, handled_by: null, resolved_at: null,
-    created_at, collected_at: new Date().toISOString(), is_sample: sample, source_url: null, external_id: null, parent_reference: null, reviews: [],
+  const step = (r: TravelRequest, action: ActionCode, who: Actor, hoursAgo: number, payload: ActionPayload = {}) => {
+    const next = apply(r, action, who, payload, t(hoursAgo), s.settings);
+    s.requests[s.requests.findIndex((x) => x.id === r.id)] = next;
+    if (who.role !== "CUSTOMER") log(s, s.users.find((u) => u.id === who.id)!.email, `request_${action}`, "request", r.ref, {}, t(hoursAgo));
+    return next;
   };
-  s.feedback.push(rec);
-  if (opts.history) { rec.action_status = "resolved"; rec.resolved_at = created_at; return rec; }
-  openCase(rec);
-  if (notify) onNew(rec);
-  return rec;
-}
-const watchWords = () => cleanWords(store!.settings.keyword_watch?.words ?? []);
+  const cust = (r: TravelRequest): Actor => ({ id: "customer", name: r.customer.name, role: "CUSTOMER" });
 
-function push(kind: string, severity: string, title: string, message: string, dedupe: string, feedback_id: string | null = null) {
-  const s = store!;
-  if (s.notifications.some((n) => n.dedupe === dedupe)) return 0;
-  s.notifications.unshift({ id: s.seq++, kind, severity, title, message, feedback_id, read: false, created_at: new Date().toISOString(), dedupe, read_by: [] });
-  return 1;
-}
-function onNew(r: Rec) {
-  const snip = r.content.length > 140 ? r.content.slice(0, 140) + "…" : r.content;
-  const found = watchHits(r.content, watchWords());
-  if (found.length) push("keyword_match", "high", `Watch word: ${found.join(", ")}`, `${snip}\nOn ${r.platform_name}`, `keyword:${r.id}`, r.id);
-  if (r.priority === "critical") push("critical_feedback", "critical", `Critical feedback on ${r.platform_name}`, `${snip}\nReason: ${r.priority_reason}`, `critical:${r.id}`, r.id);
-  else if (r.priority === "high") push("high_priority", "high", `High-priority feedback on ${r.platform_name}`, `${snip}\nReason: ${r.priority_reason}`, `high:${r.id}`, r.id);
-}
-function isoWeek(d: Date) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return `${t.getUTCFullYear()}-W${Math.ceil(((+t - +y) / 86400000 + 1) / 7)}`; }
-function periodicChecks() {
-  const s = store!; const cfg = s.settings.alerts; const now = Date.now(); const wk = isoWeek(new Date()); let n = 0;
-  const inRange = (a: number, b: number) => s.feedback.filter((f) => { const t = +new Date(f.created_at); return t >= now - a * 86400000 && t < now - b * 86400000; });
-  const cur = summarize(inRange(7, 0)).kpis, prev = summarize(inRange(14, 7)).kpis;
-  if (cur.total >= 5 && prev.total >= 5 && cur.negative_pct - prev.negative_pct >= cfg.negative_spike_pct / 2 && cur.negative_pct >= prev.negative_pct * (1 + cfg.negative_spike_pct / 100))
-    n += push("negative_spike", "high", "Negative sentiment increased", `Negative share rose from ${prev.negative_pct}% to ${cur.negative_pct}% in the last 7 days.`, `spike:${wk}`);
-  const counts: Record<string, number> = {};
-  for (const f of inRange(7, 0)) if (f.sentiment === "negative" && f.topic !== "General") counts[f.topic] = (counts[f.topic] ?? 0) + 1;
-  for (const [t, c] of Object.entries(counts)) if (c >= cfg.repeated_complaint_count) n += push("repeated_complaint", "high", `Repeated complaints: ${t}`, `${c} negative messages about ${t} in the last 7 days.`, `repeated:${t}:${wk}`);
-  for (const f of s.feedback) {
-    const age = (now - +new Date(f.created_at)) / 86400000;
-    if (["critical", "high"].includes(f.priority) && f.action_status !== "resolved" && age >= cfg.unresolved_days && age <= 60)
-      n += push("unresolved", "high", "Unresolved high-priority feedback", `Open for more than ${cfg.unresolved_days} days: ${f.content.slice(0, 140)}`, `unresolved:${f.id}`, f.id);
-  }
-  const words = watchWords();
-  if (words.length) for (const f of s.feedback) {
-    if (f.is_imported || now - +new Date(f.created_at) > 48 * 3600000) continue;
-    const found = watchHits(f.content, words);
-    if (found.length) n += push("keyword_match", "high", `Watch word: ${found.join(", ")}`, `${f.content.length > 140 ? f.content.slice(0, 140) + "…" : f.content}\nOn ${f.platform_name}`, `keyword:${f.id}`, f.id);
-  }
-  return n + clockChecks();
-}
+  make(30, "Sample: Paolo R.", "0917 555 0101", "gusto ko pumunta London 10 days, 5 star hotel");
+  make(3, "Sample: Jessa M.", "jessa.sample@example.com", "budget friendly London 10 days ₱80,000");
+  make(52, "Sample: Iris T.", "0917 555 0113", "We want to go to Iceland for 8 days in March, 2 adults");
 
+  let r = make(20, "Sample: Dela Cruz family", "0918 555 0103", "budget friendly lang, Japan 5 days, 2 adults 1 kid, December, Disneyland", {}, ["insurance"]);
+  r = step(r, "start_offer", sales, 18);
 
-// ---------- response clock (cases) ----------
-const clockCfg = () => ({ ...DEFAULT_CLOCK, ...(store!.settings.response_clock ?? {}) });
-function openCase(r: Rec, at = r.created_at) {
-  if (r.case || !["critical", "high"].includes(r.priority)) return;
-  const cfg = clockCfg(); const urgent = r.priority === "critical";
-  const hours = urgent ? cfg.urgent_hours : cfg.important_hours; const replyMin = urgent ? cfg.urgent_reply_minutes : cfg.important_reply_minutes;
-  const t = +new Date(at); const situation = situationOf(r.content, r.topic);
-  r.case = {
-    situation, traveling_now: travelingNow(r.content, situation), opened_at: new Date(t).toISOString(), due_at: new Date(t + hours * 3600000).toISOString(), deadline_hours: hours,
-    reply_due_at: new Date(t + replyMin * 60000).toISOString(), first_reply_at: null, resolved_at: null, last_update_at: new Date(t).toISOString(),
-    assignee: null, escalated: false, steps: SITUATIONS[situation].steps.map((text) => ({ text, done: false })),
-    updates: [{ at: new Date(t).toISOString(), by: "Likha Pulse", kind: "opened", text: `Case opened: ${urgent ? "Urgent" : "Important"}, solve within ${hours} hours` }],
-  };
-}
-function caseInfo(r: Rec): CaseInfo {
-  const c = structuredClone(r.case!);
-  return { ...c, id: r.id, content: r.content, platform: r.platform, platform_name: r.platform_name, author: r.author, priority: r.priority, topic: r.topic, is_sample: r.is_sample,
-    headline: { emotion: r.emotion, intent: r.intent, topic: r.topic, sentiment: r.sentiment } };
-}
-const addUpdate = (c: CaseData, kind: CaseUpdate["kind"], text: string, by: string, at = new Date().toISOString()) => { c.updates.push({ at, by, kind, text }); c.last_update_at = at; };
-function caseStats(s: Store): CaseStats {
-  const now = Date.now(); const all = s.feedback.filter((f) => f.case).map((f) => f.case!);
-  const open = all.filter((c) => !c.resolved_at); const st = (k: string) => open.filter((c) => stageOf(c, now) === k).length;
-  const solved = all.filter((c) => c.resolved_at && now - +new Date(c.resolved_at) < 30 * 86400000);
-  const replied = all.filter((c) => c.first_reply_at && now - +new Date(c.opened_at) < 30 * 86400000);
-  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
-  return {
-    open: open.length, on_track: st("green"), needs_progress: st("yellow"), at_risk: st("orange"), due_soon: st("red"), overdue: st("overdue"),
-    traveling_now: open.filter((c) => c.traveling_now).length, no_reply_yet: open.filter((c) => !c.first_reply_at).length, solved_30d: solved.length,
-    solved_on_time_pct: solved.length ? Math.round((100 * solved.filter((c) => +new Date(c.resolved_at!) <= +new Date(c.due_at)).length) / solved.length) : null,
-    avg_solve_minutes: avg(solved.map((c) => (+new Date(c.resolved_at!) - +new Date(c.opened_at)) / 60000)),
-    avg_first_reply_minutes: avg(replied.map((c) => (+new Date(c.first_reply_at!) - +new Date(c.opened_at)) / 60000)),
-  };
-}
-const MANAGER = "Maria Santos";
-function reopenCase(r: Rec) {
-  const c = r.case!; const now = Date.now(); const ms = c.deadline_hours * 3600000;
-  c.resolved_at = null; c.escalated = false; c.opened_at = new Date(now).toISOString(); c.due_at = new Date(now + ms).toISOString();
-  c.reply_due_at = new Date(now + 3600000).toISOString(); r.action_status = "pending_action";
-  addUpdate(c, "reopened", "Reopened: the clock starts again", me?.full_name ?? "Likha Pulse");
-}
-function clockChecks() {
-  const s = store!; const now = Date.now(); let n = 0;
-  for (const r of s.feedback) {
-    const c = r.case; if (!c || c.resolved_at) continue;
-    const stage = stageOf(c, now); const snip = r.content.length > 120 ? r.content.slice(0, 120) + "…" : r.content;
-    if ((stage === "red" || stage === "overdue") && !c.escalated) {
-      c.escalated = true;
-      addUpdate(c, "escalated", `Escalated to ${MANAGER} (manager): less than a quarter of the time is left`, "Likha Pulse", new Date(Math.min(now, +new Date(c.opened_at) + 0.75 * (+new Date(c.due_at) - +new Date(c.opened_at)))).toISOString());
-    }
-    if (stage === "red") n += push("case_due_soon", "critical", `Due in ${dur(+new Date(c.due_at) - now)}: ${SITUATIONS[c.situation].label}`, snip, `due:${r.id}`, r.id);
-    if (stage === "overdue") n += push("case_overdue", "critical", `Overdue: ${SITUATIONS[c.situation].label}`, `Not solved within ${c.deadline_hours} hours. ${snip}`, `overdue:${r.id}`, r.id);
-    if (!c.first_reply_at && now > +new Date(c.reply_due_at)) n += push("case_no_reply", "high", "No reply yet", `The traveler has waited ${dur(now - +new Date(c.opened_at))} for a first reply. ${snip}`, `noreply:${r.id}`, r.id);
-  }
-  return n;
+  r = make(9, "Sample: Carlo and Bianca", "0919 555 0104", "Seoul 4 nights kami ng asawa ko, 60k each, April");
+  r = step(r, "start_offer", sales, 8);
+  r = step(r, "save_offer", sales, 7, { discount: Math.round(r.offer!.totals.margin * 0.4), notes: "Repeat customers. Small discount to close." });
+  r = step(r, "submit", sales, 6);
+
+  r = make(4, "Sample: Mika and Joel", "mika.sample@example.com", "Honeymoon in Bali, Dec 20-26, luxury villa please, budget PHP 250,000", {}, ["wifi"]);
+  r = step(r, "start_offer", sales2, 3);
+  r = step(r, "submit", sales2, 2);
+
+  r = make(40, "Sample: Barkada ni Ken", "0920 555 0106", "Boracay isang linggo, barkada kami 6 tao, mura lang, August");
+  r = step(r, "start_offer", sales, 38);
+  r = step(r, "submit", sales, 37);
+  r = step(r, "approve", agent, 30);
+  r = step(r, "send", sales, 29);
+  r = step(r, "customer_question", cust(r), 5, { note: "Kasama na po ba ang breakfast sa hotel?" });
+
+  r = make(26, "Sample: Ramos family", "0921 555 0107", "family of 4 Hong Kong Disneyland 3 days, mga 100k budget");
+  r = step(r, "start_offer", sales, 24);
+  r = step(r, "submit", sales, 23);
+  r = step(r, "request_changes", agent, 5, { note: "Over their ₱100k budget. Use the budget hotel option and drop one tour." });
+
+  r = make(72, "Sample: Lea S.", "0922 555 0108", "Singapore 4 days, 2 adults, Universal Studios, 4 star");
+  r = step(r, "start_offer", sales, 70);
+  r = step(r, "submit", sales, 69);
+  r = step(r, "approve", agent, 60);
+  r = step(r, "send", sales, 59);
+  r = step(r, "customer_accept", cust(r), 30);
+
+  r = make(24 * 12, "Sample: Villanueva group", "0923 555 0109", "Dubai 6 days 3 pax 4 star, desert safari");
+  r = step(r, "start_offer", sales2, 24 * 12 - 2);
+  r = step(r, "submit", sales2, 24 * 12 - 3);
+  r = step(r, "approve", agent, 24 * 11);
+  r = step(r, "send", sales2, 24 * 11 - 1);
+  r = step(r, "customer_accept", cust(r), 24 * 10);
+  r = step(r, "mark_booked", sales2, 24 * 9);
+
+  r = make(24 * 8, "Sample: Tan family", "0924 555 0110", "Paris and Disneyland trip for 2 adults and 2 kids, 7 days, P1.2M");
+  r = step(r, "start_offer", sales, 24 * 8 - 2);
+  r = step(r, "submit", sales, 24 * 8 - 3);
+  r = step(r, "approve", owner, 24 * 7);
+  r = step(r, "send", sales, 24 * 7 - 1);
+  r = step(r, "mark_lost", sales, 24 * 3, { reason: "price", note: "Found a cheaper package online." });
+
+  r = make(24 * 15, "Sample: Grace L.", "0925 555 0111", "Taipei 4D3N 3 pax 4 star");
+  r = step(r, "start_offer", sales, 24 * 15 - 1);
+  r = step(r, "submit", sales, 24 * 15 - 2);
+  r = step(r, "approve", agent, 24 * 14);
+  r = step(r, "send", sales, 24 * 14 - 1);
+  r = step(r, "customer_accept", cust(r), 24 * 13);
+  r = step(r, "mark_booked", sales, 24 * 12);
+
+  r = make(24 * 10, "Sample: Nico P.", "0926 555 0112", "may kasama akong 2 bata, El Nido 5 days, 2 adults");
+  r = step(r, "start_offer", sales, 24 * 10 - 1);
+  r = step(r, "submit", sales, 24 * 10 - 2);
+  r = step(r, "approve", agent, 24 * 9);
+  r = step(r, "send", sales, 24 * 9 - 1);
+
+  r = make(24 * 5, "Sample: Ortega couple", "0927 555 0114", "Bangkok 5 days couple, food trip, December 26-30");
+  r = step(r, "start_offer", sales2, 24 * 5 - 2);
+  r = step(r, "submit", sales2, 24 * 5 - 3);
+  r = step(r, "decline", agent, 24 * 4, { note: "All partner hotels are full for those dates. Sales to call and offer January instead." });
+  void r;
+
+  for (const u of s.users.slice(0, 3)) log(s, u.email, "login", "user", u.id, {}, t(1 + Math.random() * 20));
+  s.audit.sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-// Ready-made live cases so the clock shows every color: [text, platform, hours ago, assignee, first reply after (min), steps done, traveling]
-import PLAYBOOK_DATA from "./playbooks.json";
-const LIVE_CASES: [string, string, number, string | null, number | null, number, boolean][] = PLAYBOOK_DATA.sample_cases.map((c) => [c.text, c.platform, c.hours_ago, c.assignee, c.reply_after_min, c.steps_done, c.traveling]);
-function seedCases(s: Store, r: () => number) {
-  const now = Date.now(); const team = ["Maria Santos", "Paolo Reyes", "Andrea Cruz"]; const live = new Set<string>();
-  for (const [i, [text, platform, hAgo, who, replyMin, done, trav]] of LIVE_CASES.entries()) {
-    const rec = ingest(platform, text, null, `live-case-${simpleHash(text)}`, new Date(now - hAgo * 3600000).toISOString(), true, false, { name: `Sample traveler ${201 + i}` });
-    if (!rec || !rec.case) continue;
-    live.add(rec.id); const c = rec.case; const t0 = +new Date(c.opened_at); c.traveling_now = trav;
-    if (who) addUpdate(c, "assigned", `Assigned to ${who}`, MANAGER, new Date(t0 + 6 * 60000).toISOString());
-    c.assignee = who;
-    if (replyMin != null) { c.first_reply_at = rec.first_reply_at = new Date(t0 + replyMin * 60000).toISOString(); rec.handled_by = who ?? MANAGER; addUpdate(c, "reply", "Replied to the traveler", who ?? MANAGER, c.first_reply_at); }
-    for (let i = 0; i < done; i++) { c.steps[i].done = true; addUpdate(c, "step", `Done: ${c.steps[i].text}`, who ?? MANAGER, new Date(Math.min(now - 600000, t0 + (replyMin ?? 30) * 60000 + (i + 1) * 0.12 * hAgo * 3600000)).toISOString()); }
-  }
-  // the generated messages: recent ones stay open on the clock, older ones were solved by the team
-  for (const f of s.feedback) {
-    const c = f.case; if (!c || c.resolved_at || live.has(f.id)) continue;
-    const t0 = +new Date(c.opened_at); const ageH = (now - t0) / 3600000; const who = pick(r, team); const urgent = f.priority === "critical";
-    if (ageH < 1) continue;
-    c.assignee = who; addUpdate(c, "assigned", `Assigned to ${who}`, MANAGER, new Date(t0 + 5 * 60000).toISOString());
-    const replyMin = Math.min(ageH * 60 - 1, urgent ? 8 + r() * 70 : 15 + r() * 260);
-    c.first_reply_at = f.first_reply_at = new Date(t0 + replyMin * 60000).toISOString(); f.handled_by = who; addUpdate(c, "reply", "Replied to the traveler", who, c.first_reply_at);
-    if (ageH >= 30 || f.action_status === "resolved") {
-      const solveH = Math.min(ageH - 0.5, c.deadline_hours * (r() < 0.9 ? 0.15 + r() * 0.8 : 1.05 + r() * 0.5));
-      c.steps.forEach((st) => (st.done = true));
-      c.resolved_at = f.resolved_at = new Date(t0 + solveH * 3600000).toISOString(); f.action_status = "resolved";
-      addUpdate(c, "solved", `Solved in ${dur(solveH * 3600000)}`, who, c.resolved_at);
-    }
-  }
-  // everyday questions, follow-ups and complaints the team already answered (for the Team response report)
-  const asks = ["inquiry", "follow_up_request", "complaint", "reported_problem", "request_assistance"];
-  for (const f of s.feedback) {
-    const ageH = (now - +new Date(f.created_at)) / 3600000;
-    if (f.case || f.first_reply_at || !asks.includes(f.intent) || ageH < 48 || r() > 0.7) continue;
-    f.first_reply_at = new Date(+new Date(f.created_at) + (10 + r() * 590) * 60000).toISOString(); f.handled_by = pick(r, team);
-    if (r() < 0.6) { f.action_status = "resolved"; f.resolved_at = new Date(+new Date(f.first_reply_at) + (0.5 + r() * 47) * 3600000).toISOString(); }
-  }
-}
-
-// ---------- analytics (port of services/analytics.py) ----------
-function bucket(iso: string, g: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  if (g === "year") return `${d.getFullYear()}`;
-  if (g === "month") return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
-  if (g === "week") { const m = new Date(d); m.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return `${m.getFullYear()}-${pad(m.getMonth() + 1)}-${pad(m.getDate())}`; }
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-const autoG = (from: Date, to: Date) => { const days = (+to - +from) / 86400000; return days <= 45 ? "day" : days <= 200 ? "week" : days <= 900 ? "month" : "year"; };
-const count = <T extends string>(arr: T[]) => arr.reduce<Record<string, number>>((m, k) => ((m[k] = (m[k] ?? 0) + 1), m), {});
-const top = (m: Record<string, number>, n: number) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, n);
-
-function summarize(rows: Rec[], g = "day"): Omit<Dashboard, "period" | "latest_insight"> {
-  const total = rows.length; const lab = count(rows.map((r) => r.sentiment)); const pr = count(rows.map((r) => r.priority));
-  const pos = lab.positive ?? 0, neg = lab.negative ?? 0, neu = lab.neutral ?? 0;
-  const pct = (n: number) => (total ? Math.round((1000 * n) / total) / 10 : 0);
-  const avg = total ? Math.round((10 * rows.reduce((s, r) => s + r.score, 0)) / total) / 10 : 0;
-  const plat: Record<string, Record<string, number>> = {}; const trend: Record<string, Record<string, number>> = {};
-  const topics: Record<string, number> = {}, negT: Record<string, number> = {}, posT: Record<string, number> = {};
-  for (const r of rows) {
-    (plat[r.platform_name] ??= {})[r.sentiment] = (plat[r.platform_name][r.sentiment] ?? 0) + 1;
-    const b = bucket(r.created_at, g); const tb = (trend[b] ??= { positive: 0, neutral: 0, negative: 0, _s: 0 }); tb[r.sentiment]++; tb._s += r.score;
-    for (const t of r.topics) { if (t === "General") continue; topics[t] = (topics[t] ?? 0) + 1; if (r.sentiment === "negative") negT[t] = (negT[t] ?? 0) + 1; if (r.sentiment === "positive") posT[t] = (posT[t] ?? 0) + 1; }
-  }
-  return {
-    kpis: { total, positive: pos, negative: neg, neutral: neu, pending_review: rows.filter((r) => r.review_status === "pending_review").length,
-      high_priority: (pr.critical ?? 0) + (pr.high ?? 0), critical: pr.critical ?? 0,
-      unresolved_high_priority: rows.filter((r) => r.action_status !== "resolved" && ["critical", "high"].includes(r.priority)).length,
-      average_score: avg, positive_pct: pct(pos), negative_pct: pct(neg), neutral_pct: pct(neu),
-      overall_sentiment_pct: pos + neg ? Math.round((1000 * pos) / (pos + neg)) / 10 : 0, sample_count: rows.filter((r) => r.is_sample).length },
-    distribution: ["positive", "neutral", "negative"].map((k) => ({ name: k, value: lab[k] ?? 0 })),
-    trend: Object.keys(trend).sort().map((b) => { const c = trend[b]; const n = c.positive + c.neutral + c.negative; return { period: b, positive: c.positive, neutral: c.neutral, negative: c.negative, avg_score: Math.round((10 * c._s) / Math.max(1, n)) / 10 }; }),
-    by_platform: Object.keys(plat).sort().map((p) => ({ platform: p, positive: plat[p].positive ?? 0, neutral: plat[p].neutral ?? 0, negative: plat[p].negative ?? 0, total: Object.values(plat[p]).reduce((a, b) => a + b, 0) })),
-    top_topics: top(topics, 8).map(([topic, c]) => ({ topic, count: c })), top_complaints: top(negT, 6).map(([topic, c]) => ({ topic, count: c })),
-    most_appreciated: top(posT, 6).map(([topic, c]) => ({ topic, count: c })),
-    emotions: top(count(rows.map((r) => r.emotion)), 20).map(([emotion, c]) => ({ emotion, count: c })),
-    priorities: ["critical", "high", "medium", "low"].map((level) => ({ level, count: pr[level] ?? 0 })),
-    intents: top(count(rows.map((r) => r.intent)), 20).map(([intent, c]) => ({ intent, count: c })), granularity: g,
-  };
-}
-
-function period(f: Filters): [Date, Date] {
-  const to = f.date_to ? new Date(f.date_to + (f.date_to.length === 10 ? "T23:59:59" : "")) : new Date();
-  const from = f.date_from ? new Date(f.date_from + (f.date_from.length === 10 ? "T00:00:00" : "")) : new Date(+to - 30 * 86400000);
-  return [from, to];
-}
-function filterRows(s: Store, f: Filters, usePeriod = false): Rec[] {
-  const [from, to] = usePeriod ? period(f) : [f.date_from ? period(f)[0] : null, f.date_to ? period(f)[1] : null];
-  return s.feedback.filter((r) => {
-    const t = new Date(r.created_at);
-    if (from && t < from) return false;
-    if (to && t > to) return false;
-    if (f.platform && r.platform !== f.platform) return false;
-    if (f.sentiment && r.sentiment !== f.sentiment) return false;
-    if (f.priority && !f.priority.split(",").includes(r.priority)) return false;
-    if (f.emotion && r.emotion !== f.emotion) return false;
-    if (f.intent && !f.intent.split(",").includes(r.intent)) return false;
-    if (f.topic && !r.topics.includes(f.topic)) return false;
-    if (f.review && r.review_status !== f.review) return false;
-    if (f.action === "unresolved" ? r.action_status === "resolved" : f.action && r.action_status !== f.action) return false;
-    if (f.search && !r.content.toLowerCase().includes(f.search.toLowerCase())) return false;
-    if (f.include_sample === false && r.is_sample) return false;
-    return true;
-  }).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-}
-
-// ---------- insights (port of services/insights.py) ----------
-function aggregates(s: Store, f: Filters) {
-  const [from, to] = period(f); const span = +to - +from;
-  const cur = summarize(filterRows(s, { ...f, date_from: from.toISOString(), date_to: to.toISOString() }), autoG(from, to));
-  const prev = summarize(filterRows(s, { ...f, date_from: new Date(+from - span).toISOString(), date_to: from.toISOString() }));
-  const cn = Object.fromEntries(cur.top_complaints.map((t) => [t.topic, t.count])); const pn = Object.fromEntries(prev.top_complaints.map((t) => [t.topic, t.count]));
-  const emerging = Object.entries(cn).filter(([t, n]) => n >= 2 && n >= 2 * Math.max(1, pn[t] ?? 0)).sort((a, b) => (b[1] - (pn[b[0]] ?? 0)) - (a[1] - (pn[a[0]] ?? 0))).slice(0, 4).map(([topic, now]) => ({ topic, now, before: pn[topic] ?? 0 }));
-  return { period: { from: from.toISOString(), to: to.toISOString() }, current: cur.kpis, previous: prev.kpis, top_complaints: cur.top_complaints,
-    most_appreciated: cur.most_appreciated, emotions: cur.emotions.slice(0, 5), emerging, recurring: Object.entries(cn).filter(([t, n]) => n >= 3 && (pn[t] ?? 0) >= 2).map(([t]) => t),
-    assistance_requests: cur.intents.filter((i) => ["request_assistance", "follow_up_request"].includes(i.intent)).reduce((a, i) => a + i.count, 0), by_platform: cur.by_platform };
-}
-function compose(agg: ReturnType<typeof aggregates>): InsightSummary {
-  const c = agg.current, p = agg.previous;
-  if (!c.total) return { overall: "No messages came in during this period.", positives: "", complaints: "", emerging: "", recurring: "", trend: "", actions: "" };
-  let overall = `You received ${c.total} messages: ${c.positive} from happy customers (${c.positive_pct}%), ${c.neutral} neutral and ${c.negative} from unhappy customers (${c.negative_pct}%). ` +
-    (c.high_priority ? `${c.high_priority} need your attention` + (c.pending_review ? `, and ${c.pending_review} are unclear and worth a quick look.` : ".") : "Nothing urgent came in.");
-  if (c.sample_count) overall += ` Note: ${c.sample_count} of these are sample messages for preview, not real customers.`;
-  const ma = agg.most_appreciated, tc = agg.top_complaints, em = agg.emerging; const acts: string[] = [];
-  if (tc.length) acts.push(`Fix the biggest complaint first: ${tc[0].topic.toLowerCase()}. Assign one person to own it.`);
-  if (em.length) acts.push(`Look into ${em[0].topic.toLowerCase()} now, before it becomes a bigger problem.`);
-  if (c.unresolved_high_priority) acts.push(`Reply to the ${c.unresolved_high_priority} customers who still need an answer.`);
-  if (agg.assistance_requests) acts.push(`${agg.assistance_requests} customers asked for help or an update. Make sure someone replies quickly.`);
-  if (c.pending_review) acts.push(`Take a quick look at ${c.pending_review} unclear messages (some may be sarcasm).`);
-  if (ma.length) acts.push(`Thank your team: customers love your ${ma[0].topic.toLowerCase()}.`);
-  return {
-    overall,
-    positives: ma.length ? `Happy customers most often mention ${ma.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No single thing stood out in the happy messages.",
-    complaints: tc.length ? `Most complaints are about ${tc.slice(0, 3).map((t) => `${t.topic} (${t.count})`).join(", ")}.` : "No common complaint this period.",
-    emerging: em.length ? `New issues growing fast (complaints at least doubled): ${em.map((e) => `${e.topic} (${e.before} → ${e.now})`).join(", ")}.` : "No new problem is growing quickly.",
-    recurring: agg.recurring.length ? `These problems keep coming back: ${agg.recurring.join(", ")}.` : "No problem keeps repeating.",
-    trend: p.total ? `${c.negative_pct <= p.negative_pct ? "Things are improving: " : "Things got worse: "}unhappy messages went from ${p.negative_pct}% to ${c.negative_pct}% compared with the period before.` : "Not enough history yet to compare with an earlier period.",
-    actions: acts.join("\n") || "Keep doing what you are doing. Nothing needs action right now.",
-  };
-}
-
-// ---------- ready-made sample library: team, handled messages, past summaries and reports ----------
-function seedLibrary(s: Store) {
-  const r = rng(7); const now = new Date(); const day = 86400000;
-  const iso = (d: Date) => d.toISOString();
-  const team: [string, string, string][] = [["Maria Santos", "maria@demo.likha", "ADMIN"], ["Paolo Reyes", "paolo@demo.likha", "ANALYST"], ["Andrea Cruz", "andrea@demo.likha", "ANALYST"], ["Jose Lim", "jose@demo.likha", "VIEWER"]];
-  for (const [name, email, role] of team)
-    s.users.push({ id: uid(), email, full_name: name, role, is_active: true, last_login_at: iso(new Date(+now - Math.floor(r() * 5) * day - 3600000)), created_at: iso(new Date(+now - 200 * day)), pw: "" });
-  const staff = ["Maria Santos", "Paolo Reyes", "Andrea Cruz"];
-  // older urgent items were handled; many unclear ones were checked by the team
-  for (const f of s.feedback) {
-    const age = (+now - +new Date(f.created_at)) / day;
-    if (age < 3) continue;
-    const when = iso(new Date(+new Date(f.created_at) + (0.2 + r()) * day));
-    const who = pick(r, staff);
-    if (f.review_status === "pending_review" && r() < 0.65) {
-      f.review_status = "reviewed";
-      f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
-      s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "feedback_reviewed", entity: "feedback", entity_id: f.id, details: {}, ip: "sample", created_at: when });
-    } else if (f.review_status === "unreviewed" && r() < 0.12) {
-      f.review_status = "reviewed";
-      f.reviews.push({ field: "confirm", original: f.sentiment, corrected: f.sentiment, note: "AI result confirmed", reviewer: who, at: when });
-    }
-  }
-  seedCases(s, r);
-  for (const f of s.feedback) if (f.case?.resolved_at) {
-    const who = f.case.assignee ?? "Maria Santos";
-    s.audit.push({ id: s.seq++, actor: `${who.split(" ")[0].toLowerCase()}@demo.likha`, action: "case_solved", entity: "feedback", entity_id: f.id, details: { minutes: Math.round((+new Date(f.case.resolved_at) - +new Date(f.case.opened_at)) / 60000) }, ip: "sample", created_at: f.case.resolved_at });
-  }
-  // past AI summaries: the last 4 full months + the last 30 days
-  const months: [Date, Date][] = [];
-  for (let m = 4; m >= 1; m--) { const a = new Date(now.getFullYear(), now.getMonth() - m, 1); const b = new Date(now.getFullYear(), now.getMonth() - m + 1, 0, 23, 59, 59); months.push([a, b]); }
-  const periods: [Date, Date][] = [...months, [new Date(+now - 30 * day), now]];
-  const made: Insight[] = [];
-  for (const [a, b] of periods) {
-    const f = { date_from: iso(a), date_to: iso(b) };
-    const agg = aggregates(s, f);
-    if (!agg.current.total) continue;
-    const created = new Date(Math.min(+b + day, +now - 3600000));
-    made.push({ id: s.seq++, summary: compose(agg), aggregates: agg, engine: "rule", filters: {}, period: agg.period, created_at: iso(created) });
-  }
-  s.insights = made.reverse();
-  // ready-made reports (generated on download from the sample data)
-  const mname = (d: Date) => d.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
-  const specs: [string, string, Date, Date, Filters][] = [
-    ...months.map(([a, b]) => ["monthly", "pdf", a, b, {}] as [string, string, Date, Date, Filters]),
-    ["overall", "xlsx", new Date(+now - 90 * day), now, {}],
-    ["complaints", "pdf", new Date(+now - 30 * day), now, {}],
-    ["priority", "pdf", new Date(+now - 30 * day), now, {}],
-    ["negative", "csv", new Date(+now - 30 * day), now, {}],
-    ["positive", "xlsx", new Date(+now - 30 * day), now, {}],
-    ["platform", "pdf", new Date(+now - 90 * day), now, { platform: "facebook_page" }],
-    ["platform", "pdf", new Date(+now - 90 * day), now, { platform: "messenger" }],
-    ["insights", "pdf", new Date(+now - 30 * day), now, {}],
-  ];
-  const reps = specs.map(([type, fmt, a, b, extra], i) => ({
-    id: s.seq++, report_type: type, file_format: fmt, sample: true,
-    name: type === "monthly" ? `Monthly Sentiment Report — ${mname(a)}` : type === "platform" ? `${REPORT_TYPES[type]} — ${PLATFORMS[extra.platform!]}` : REPORT_TYPES[type],
-    period: { from: iso(a), to: iso(b) }, created_at: iso(new Date(Math.min(+now - (specs.length - i) * 3600000, +b + day))),
-    filters: { ...extra, date_from: iso(a), date_to: iso(b) },
-  }));
-  s.reports = reps.sort((x, y) => +new Date(y.created_at) - +new Date(x.created_at));
-  for (const rp of s.reports) s.audit.push({ id: s.seq++, actor: "maria@demo.likha", action: "report_generated", entity: "report", entity_id: String(rp.id), details: { type: rp.report_type, format: rp.file_format }, ip: "sample", created_at: rp.created_at });
-  for (const u of s.users) if (u.last_login_at) s.audit.push({ id: s.seq++, actor: u.email, action: "login", entity: "user", entity_id: u.id, details: {}, ip: "sample", created_at: u.last_login_at });
-  s.audit.sort((x, y) => +new Date(y.created_at) - +new Date(x.created_at));
-}
-
-// ---------- team tools (ports of services/team_report.py and services/weekly_report.py) ----------
-const UNASSIGNED = "Not assigned";
-const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-function teamRows(s: Store, since: Date): TeamRow[] {
-  const minutes = (a: string, b: string | null | undefined) => (b ? Math.max(0, Math.round((+new Date(b) - +new Date(a)) / 60000)) : null);
-  return s.feedback
-    .filter((f) => !f.is_imported && +new Date(f.created_at) >= +since && (f.case || f.handled_by || f.first_reply_at))
-    .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
-    .map((f) => {
-      const c = f.case; const start = c ? c.opened_at : f.created_at;
-      const first = (c?.first_reply_at ?? null) || f.first_reply_at; const done = (c?.resolved_at ?? null) || (f.action_status === "resolved" ? f.resolved_at : null);
-      return { id: f.id, content: f.content, platform: f.platform, platform_name: f.platform_name, is_sample: f.is_sample, handler: c?.assignee || f.handled_by || UNASSIGNED,
-        started_at: start, month: monthKey(new Date(start)), is_case: !!c, priority: f.priority, first_reply_minutes: minutes(start, first), resolution_minutes: minutes(start, done),
-        status: done ? "solved" : first ? "replied" : "waiting" } as TeamRow;
-    });
-}
-function teamSummary(rows: TeamRow[]): Omit<TeamStat, "name"> {
-  const fr = rows.map((r) => r.first_reply_minutes).filter((x): x is number => x !== null); const rs = rows.map((r) => r.resolution_minutes).filter((x): x is number => x !== null);
-  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
-  return { handled: rows.length, replied: fr.length, solved: rs.length, avg_first_reply_minutes: avg(fr), avg_resolution_minutes: avg(rs) };
-}
-const byStaff = (rows: TeamRow[]): TeamStat[] => [...new Set(rows.map((r) => r.handler))]
-  .map((name) => ({ name, ...teamSummary(rows.filter((r) => r.handler === name)) }))
-  .sort((a, b) => Number(a.name === UNASSIGNED) - Number(b.name === UNASSIGNED) || b.handled - a.handled || a.name.localeCompare(b.name));
-function teamReportData(s: Store, months: number): TeamReport {
-  const now = new Date(); const since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
-  const rows = teamRows(s, since); const staff = byStaff(rows); const names = staff.map((x) => x.name);
-  const keys = Array.from({ length: months }, (_, i) => monthKey(new Date(since.getFullYear(), since.getMonth() + i, 1)));
-  const by_month = keys.flatMap((month) => names.map((name) => ({ month, name, rows: rows.filter((r) => r.month === month && r.handler === name) })).filter((x) => x.rows.length).map(({ month, name, rows: rr }) => ({ month, name, ...teamSummary(rr) })));
-  return { period: { from: since.toISOString(), to: now.toISOString() }, months: keys, team: names, totals: teamSummary(rows), staff, by_month, items: rows.slice(0, 200) };
-}
-const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
-function weeklyData(s: Store): WeeklyReport {
-  const now = new Date(); const start = new Date(+now - 7 * 86400000); const prevStart = new Date(+now - 14 * 86400000);
-  const rows = filterRows(s, { date_from: start.toISOString(), date_to: now.toISOString() });
-  const cur = summarize(rows); const k = cur.kpis; const prev = summarize(filterRows(s, { date_from: prevStart.toISOString(), date_to: start.toISOString() })).kpis;
-  const cases = s.feedback.filter((f) => f.case).map((f) => f.case!); const open = cases.filter((c) => !c.resolved_at);
-  const solved = cases.filter((c) => c.resolved_at && +new Date(c.resolved_at) >= +start);
-  const clock = { open: open.length, overdue: open.filter((c) => +new Date(c.due_at) < +now).length, solved: solved.length,
-    on_time_pct: solved.length ? Math.round((100 * solved.filter((c) => +new Date(c.resolved_at!) <= +new Date(c.due_at)).length) / solved.length) : null };
-  const wc: Record<string, number> = {}; const words = watchWords();
-  for (const r of rows) for (const w of watchHits(r.content, words)) wc[w] = (wc[w] ?? 0) + 1;
-  const watch = Object.entries(wc).sort((a, b) => b[1] - a[1]).map(([word, count]) => ({ word, count }));
-  const team = byStaff(teamRows(s, start)).filter((t) => t.name !== UNASSIGNED).slice(0, 5).map((t) => ({ name: t.name, handled: t.handled, avg_first_reply_minutes: t.avg_first_reply_minutes }));
-  const urgent = k.unresolved_high_priority;
-  const verdict = !k.total ? "A quiet week: no new messages came in."
-    : urgent ? `${plural(urgent, "traveler")} still ${urgent === 1 ? "needs" : "need"} an answer. Start there this week.`
-    : k.negative_pct >= prev.negative_pct + 5 ? `Unhappy messages went up this week (${prev.negative_pct}% to ${k.negative_pct}%).`
-    : k.negative_pct + 5 <= prev.negative_pct ? `A better week: unhappy messages went down (${prev.negative_pct}% to ${k.negative_pct}%).`
-    : `A steady week: ${k.positive_pct}% of messages were happy.`;
-  const actions: string[] = [];
-  if (cur.top_complaints[0]) actions.push(`Fix the biggest complaint first: ${cur.top_complaints[0].topic.toLowerCase()}.`);
-  if (clock.overdue) actions.push(`${plural(clock.overdue, "case is", "cases are")} past the deadline on the Response Clock.`);
-  if (watch.length) actions.push(`${plural(watch.reduce((a, w) => a + w.count, 0), "message")} mentioned your watch words (${watch.slice(0, 3).map((w) => w.word).join(", ")}).`);
-  if (cur.most_appreciated[0]) actions.push(`Thank your team: travelers loved your ${cur.most_appreciated[0].topic.toLowerCase()}.`);
-  const md = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const cfg = s.settings.weekly_report ?? { enabled: true, recipients: "" };
-  const listed = (cfg.recipients ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-  return {
-    subject: `Likha Pulse weekly report: ${md(start)} to ${md(now)}`, period: { from: start.toISOString(), to: now.toISOString() }, verdict,
-    kpis: { total: k.total, positive_pct: k.positive_pct, negative_pct: k.negative_pct, prev_negative_pct: prev.negative_pct, prev_total: prev.total, urgent_open: urgent, sample_count: k.sample_count },
-    clock, top_complaints: cur.top_complaints.slice(0, 3), most_appreciated: cur.most_appreciated.slice(0, 3), watch, team, actions,
-    enabled: cfg.enabled !== false, recipients: listed.length ? listed : s.users.filter((u) => u.role === "SUPER_ADMIN" && u.is_active).map((u) => u.email),
-    recipients_setting: cfg.recipients ?? "", email_ready: false, last_sent_week: cfg.last_sent_week ?? "", schedule: "Every Monday, 8:00 AM (Philippine time)",
-  };
-}
-const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-
-// ---------- helpers ----------
-let me: Me | null = null;
-const detail = (r: Rec): FeedbackDetail => {
-  const { hash, case: _c, author_name, resolved_at, ...rest } = r; void hash; void _c; void resolved_at;
-  const s = store!;
-  return { ...structuredClone(rest), client: clientLabel(r.author, author_name), watch_hits: watchHits(r.content, watchWords()),
-    client_messages: r.author === "anonymous" ? 1 : s.feedback.filter((f) => f.author === r.author).length };
-};
-const item = (r: Rec): FeedbackItem => { const { client_messages, ...d } = detail(r); void client_messages; return d as FeedbackItem; };
-function need(perm: string) { if (!me) throw new Error("Not signed in"); if (!me.permissions.includes(perm)) throw new Error(`Missing permission: ${perm}`); }
-function log(action: string, entity = "", entity_id = "", details: unknown = {}) {
-  const s = store!; s.audit.unshift({ id: s.seq++, actor: me?.email ?? "system", action, entity, entity_id, details, ip: "browser", created_at: new Date().toISOString() });
-}
-const toMe = (u: DemoUser): Me => ({ id: u.id, email: u.email, full_name: u.full_name, role: u.role, permissions: ROLE_PERMS[u.role] });
-function download(name: string, data: BlobPart, type: string) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
-const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const HEAD = ["ID", "Platform", "Date", "Author", "Feedback", "Sentiment", "Score", "Confidence", "Emotion", "Intent", "Topics", "Priority", "Review status", "Sample data"];
-const rowOf = (r: Rec) => [r.id.slice(0, 8), r.platform_name, r.created_at.slice(0, 16).replace("T", " "), clientLabel(r.author, r.author_name), r.content, r.sentiment, r.score, `${Math.round(r.confidence * 100)}%`, r.emotion, r.intent, r.topics.join(", "), r.priority, r.review_status, r.is_sample ? "yes" : "no"];
-const REPORT_TYPES: Record<string, string> = { overall: "Overall Sentiment Report", platform: "Platform-Specific Report", negative: "Negative Feedback Report", positive: "Positive Feedback Report", complaints: "Complaint Analysis Report", priority: "Priority Concerns Report", monthly: "Monthly Sentiment Report", insights: "AI Insights and Recommendations" };
-function scope(type: string, f: Filters): Filters {
-  if (type === "negative") return { ...f, sentiment: "negative" };
-  if (type === "positive") return { ...f, sentiment: "positive" };
-  if (type === "complaints") return { ...f, intent: "complaint,reported_problem,follow_up_request" };
-  if (type === "priority") return { ...f, priority: "critical,high" };
-  return f;
+// ---------- API ----------
+function need(perm: string) { if (!me?.permissions.includes(perm)) throw new Error("Your role can't open this page."); }
+const toMe = (u: DemoUser): Me => ({ id: u.id, email: u.email, full_name: u.full_name, role: u.role as Me["role"], permissions: PERMS[u.role] ?? [] });
+function find(s: Store, ref: string, contact: string) {
+  const r = s.requests.find((x) => x.ref.toUpperCase() === ref.trim().toUpperCase());
+  if (!r || !contactMatches(r.customer.contact, contact)) throw new Error("We couldn't find a request with that reference number and contact.");
+  return r;
 }
 
 export const demoApi: Api = {
   mode: "demo",
   async login(email, password) {
     const s = await db(); const u = s.users.find((x) => x.email === email.toLowerCase().trim());
-    if (!u || !u.is_active || u.pw !== (await sha(password))) { log("login_failed", "user", "", { email }); save(); throw new Error("Incorrect email or password"); }
-    u.last_login_at = new Date().toISOString(); me = toMe(u); log("login", "user", u.id); save();
+    if (!u || !u.is_active || !u.pw || u.pw !== (await sha(password))) { log(s, email, "login_failed", "user", ""); save(); throw new Error("Incorrect email or password"); }
+    u.last_login_at = now(); me = toMe(u); log(s, u.email, "login", "user", u.id); save();
     try { sessionStorage.setItem(SESSION, u.id); } catch { /* ignore */ }
     return me;
   },
   logout() { me = null; try { sessionStorage.removeItem(SESSION); } catch { /* ignore */ } },
   async me() { const s = await db(); let id: string | null = null; try { id = sessionStorage.getItem(SESSION); } catch { /* ignore */ } const u = s.users.find((x) => x.id === id && x.is_active); me = u ? toMe(u) : null; return me; },
-  async dashboard(f, g) {
-    need("dashboard.view"); const s = await db(); const [from, to] = period(f);
-    const rows = filterRows(s, { ...f, date_from: from.toISOString(), date_to: to.toISOString() });
-    const latest = s.insights[0];
-    return { ...summarize(rows, g || autoG(from, to)), period: { from: from.toISOString(), to: to.toISOString() },
-      latest_insight: latest ? { id: latest.id, summary: latest.summary, engine: latest.engine, created_at: latest.created_at, period: latest.period } : null };
-  },
-  async feedback(f, page, pageSize) { need("feedback.view"); const s = await db(); const rows = filterRows(s, f); return { total: rows.length, page, page_size: pageSize, items: rows.slice((page - 1) * pageSize, page * pageSize).map(item) }; },
-  async feedbackDetail(id) { need("feedback.view"); const r = (await db()).feedback.find((x) => x.id === id); if (!r) throw new Error("Feedback not found"); return detail(r); },
-  async addFeedback(content, author, rating) {
-    need("feedback.manage"); await db(); const r = ingest("manual", content, rating ?? null, author ?? null, new Date().toISOString(), false);
-    if (!r) throw new Error("This feedback was already recorded (duplicate)."); log("feedback_added", "feedback", r.id); save(); return detail(r);
-  },
-  async review(id, body) {
-    need("feedback.review"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; const changes: unknown[] = [];
-    for (const k of ["sentiment", "emotion", "intent", "priority"] as const) {
-      const v = body[k]; if (v && v !== r[k]) { r.reviews.push({ field: k, original: String(r[k]), corrected: v, note: body.note ?? "", reviewer: me!.full_name, at: new Date().toISOString() }); (r as any)[k] = v; changes.push({ field: k, to: v }); }
-    }
-    if (!changes.length) r.reviews.push({ field: "confirm", original: r.sentiment, corrected: r.sentiment, note: body.note || "AI result confirmed", reviewer: me!.full_name, at: new Date().toISOString() });
-    r.review_status = "reviewed"; if (r.action_status !== "resolved") openCase(r, new Date().toISOString()); log("feedback_reviewed", "feedback", id, { changes, note: body.note }); save(); return detail(r);
-  },
-  async setStatus(id, status) {
-    need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; r.action_status = status;
-    r.resolved_at = status === "resolved" ? new Date().toISOString() : null; if (status === "resolved") r.handled_by ??= me!.full_name;
-    if (r.case && status === "resolved" && !r.case.resolved_at) { const now = new Date().toISOString(); r.case.resolved_at = now; r.case.first_reply_at ??= now; addUpdate(r.case, "solved", `Solved in ${dur(Date.now() - +new Date(r.case.opened_at))}`, me!.full_name); }
-    if (r.case && status !== "resolved" && r.case.resolved_at) reopenCase(r);
-    log("feedback_status", "feedback", id, { status }); save(); return detail(r);
-  },
-  async reanalyze(id) { need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id)!; Object.assign(r, analyzeInto(r, s)); log("feedback_reanalyzed", "feedback", id); save(); return detail(r); },
-  async analyze(text, rating) {
-    need("feedback.view"); const s = await db(); const a = fullAnalysis(text, rating ?? null, s.settings.sentiment_thresholds); const ct = s.settings.confidence_thresholds;
-    return { sentiment: a.label, score: a.score, confidence: a.confidence, confidence_band: a.confidence >= ct.high ? "high" : a.confidence >= ct.moderate ? "moderate" : "low (manual review)",
-      emotion: a.emotion, intent: a.intent, intent_reason: a.intent_reason, topics: a.topics, possible_sarcasm: a.possible_sarcasm, reason: a.reason,
-      priority: a.priority as any, priority_reason: a.priority_reason, recommended_action: a.recommended_action, language: a.language, engine: a.engine, model_version: a.model_version };
-  },
-  async generateInsight(f) {
-    need("insights.generate"); const s = await db(); const agg = aggregates(s, f);
-    const ins: Insight = { id: s.seq++, summary: compose(agg), aggregates: agg, engine: "rule", filters: Object.fromEntries(Object.entries(f).filter(([k, v]) => v && !k.startsWith("date"))), period: agg.period, created_at: new Date().toISOString() };
-    s.insights.unshift(ins); s.insights = s.insights.slice(0, 20); log("insight_generated", "insight", String(ins.id)); save(); return ins;
-  },
-  async insights() { need("dashboard.view"); return (await db()).insights; },
-  async integrations() {
+
+  async submitRequest(n) {
     const s = await db();
-    return Object.entries(PLATFORMS).map(([code, name]) => {
-    const local = code === "manual" || code === "import";
-    return { code, name, status: local ? "connected" : "not_connected",
-      detail: code === "manual" ? "Feedback added by staff." : code === "import" ? "Past feedback imported from Excel or CSV." : "Not connected. This demo runs entirely in your browser; connect official API credentials in the server version.",
-      missing: local ? [] : ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"], required_env: local ? [] : ["META_PAGE_ID", "META_PAGE_ACCESS_TOKEN"],
-      docs_url: code === "facebook_page" ? "https://developers.facebook.com/docs/graph-api/reference/page/feed" : code === "messenger" ? "https://developers.facebook.com/docs/graph-api/reference/page/conversations" : "",
-      last_sync_at: null, feedback_count: s.feedback.filter((f) => f.platform === code).length, sample_count: s.feedback.filter((f) => f.platform === code && f.is_sample).length };
-    });
+    const r = createRequest({ id: uid(), seq: s.seq++, now: now(), customer: n.customer, raw_text: n.raw_text, input: n.input, addons: n.addons }, s.settings);
+    s.requests.push(r); log(s, "customer", "request_submitted", "request", r.ref); save();
+    return wait({ ref: r.ref, contact: r.customer.contact });
   },
-  async sync(code) { need("integrations.manage"); log("integration_sync", "platform", code, { status: "not_connected" }); save(); return { platform: code, status: "not_connected", detail: "Demo mode: no platform credentials. Nothing was fetched.", added: 0 }; },
-  async loadSample() { need("integrations.manage"); const s = await db(); let n = 0; for (const x of generateSample()) if (ingest(x.platform, x.content, x.rating, x.author, x.created_at, true, false, { name: x.name })) n++; periodicChecks(); log("sample_data_loaded", "feedback", "", { added: n }); save(); return { added: n }; },
-  async clearSample() { need("integrations.manage"); const s = await db(); const n = s.feedback.filter((f) => f.is_sample).length; s.feedback = s.feedback.filter((f) => !f.is_sample); log("sample_data_deleted", "feedback", "", { deleted: n }); save(); return { deleted: n }; },
-  async notifications() { const s = await db(); periodicChecks(); save(); const items = s.notifications.slice(0, 50).map((n) => ({ ...n, read: !!me && n.read_by.includes(me.id) })); return { unread: items.filter((n) => !n.read).length, items }; },
-  async markRead(id) { const s = await db(); const n = s.notifications.find((x) => x.id === id); if (n && me && !n.read_by.includes(me.id)) n.read_by.push(me.id); save(); },
-  async markAllRead() { const s = await db(); for (const n of s.notifications) if (me && !n.read_by.includes(me.id)) n.read_by.push(me.id); save(); },
-  async reportTypes() { return Object.entries(REPORT_TYPES).map(([code, name]) => ({ code, name })); },
-  async reports() { need("reports.view"); return (await db()).reports; },
-  async createReport(type, format, f) {
-    need("reports.generate"); const s = await db();
-    if (type === "platform" && !f.platform) throw new Error("Choose a platform for the platform-specific report.");
-    let ff = { ...f };
-    if (type === "monthly" && !f.date_from) { const n = new Date(); ff = { ...ff, date_from: new Date(n.getFullYear(), n.getMonth(), 1).toISOString(), date_to: n.toISOString() }; }
-    const [from, to] = period(ff);
-    const rep = { id: s.seq++, report_type: type, name: REPORT_TYPES[type], file_format: format, period: { from: from.toISOString(), to: to.toISOString() }, created_at: new Date().toISOString(), filters: ff };
-    s.reports.unshift(rep); log("report_generated", "report", String(rep.id), { type, format }); save(); return rep;
+  async track(ref, contact) { const s = await db(); return wait(publicView(find(s, ref, contact), s.settings, now())); },
+  async customerAction(ref, contact, action, note) {
+    const s = await db(); const r = find(s, ref, contact);
+    if (!ACTIONS[action]?.roles.includes("CUSTOMER")) throw new Error("Not allowed.");
+    const next = apply(r, action, { id: "customer", name: r.customer.name, role: "CUSTOMER" }, { note }, now(), s.settings);
+    s.requests[s.requests.indexOf(r)] = next; log(s, "customer", `request_${action}`, "request", r.ref); save();
+    return publicView(next, s.settings, now());
   },
-  async downloadReport(rep) {
-    const s = await db(); const full = s.reports.find((x) => x.id === rep.id)!; const f = scope(full.report_type, full.filters);
-    const [from, to] = period(f); const rows = filterRows(s, { ...f, date_from: from.toISOString(), date_to: to.toISOString() });
-    const agg = aggregates(s, f); const text = compose(agg); const c = agg.current; const title = full.name.includes(" — ") || !f.platform ? full.name : `${full.name} — ${PLATFORMS[f.platform]}`;
-    const per = `${from.toDateString()} – ${to.toDateString()}`;
-    if (full.file_format === "csv") {
-      const q = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-      download(`${full.report_type}.csv`, "﻿" + [[title], [`Period: ${per}`], [], HEAD, ...rows.map(rowOf)].map((r) => r.map(q).join(",")).join("\r\n"), "text/csv");
-      return;
-    }
-    const summaryRows = [["Total feedback", c.total], ["Positive", c.positive], ["Neutral", c.neutral], ["Negative", c.negative], ["Average sentiment score", c.average_score], ["High priority / critical", c.high_priority], ["Pending review", c.pending_review], ["Sample data items", c.sample_count]];
-    const obs = Object.entries(text).filter(([, v]) => v).map(([k, v]) => `<p><b>${esc(k[0].toUpperCase() + k.slice(1))}.</b> ${esc(v)}</p>`).join("");
-    const table = `<table border="1" cellspacing="0" cellpadding="4"><tr>${HEAD.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${rowOf(r).map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>`;
-    if (full.file_format === "xlsx") {
-      // Spreadsheet (HTML table format) that opens directly in Excel. The server version produces native .xlsx with charts.
-      download(`${full.report_type}.xls`, `<html><head><meta charset="utf-8"></head><body><h2>${esc(title)}</h2><p>${per}</p><table border="1">${summaryRows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table><br>${obs}<br>${table}</body></html>`, "application/vnd.ms-excel");
-      return;
-    }
-    const bar = (label: string, n: number, color: string) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:70px">${label}</span><span style="height:12px;background:${color};width:${c.total ? (300 * n) / c.total : 0}px"></span><span>${n}</span></div>`;
-    const w = window.open("", "_blank");
-    if (!w) throw new Error("Allow pop-ups to open the printable PDF report.");
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font:12px Inter,Arial,sans-serif;color:#1e293b;margin:32px}h1{color:#0f1f3d;margin:0}h2{color:#0f1f3d;margin-top:22px}table{border-collapse:collapse;width:100%;font-size:10px}th{background:#eef1f6;text-align:left}td,th{border:1px solid #d5dae3;padding:4px;vertical-align:top}.k{display:flex;gap:10px;flex-wrap:wrap}.k div{border:1px solid #d5dae3;border-radius:6px;padding:8px 12px}.k b{display:block;font-size:18px;color:#0f1f3d}</style></head><body>
-      <h1>${esc(title)}</h1><p>Reporting period: ${per} · Generated ${new Date().toLocaleString()}</p>${c.sample_count ? `<p style="color:#d64545">Includes ${c.sample_count} labeled sample-data items (not real customer feedback).</p>` : ""}
-      <div class="k">${summaryRows.map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join("")}</div><h2>Sentiment distribution</h2>${bar("Positive", c.positive, "#1f9d6b")}${bar("Neutral", c.neutral, "#8a94a6")}${bar("Negative", c.negative, "#d64545")}
-      <h2>Key observations & recommendations</h2>${obs}<h2>Feedback (${rows.length})</h2>${table}<script>setTimeout(()=>print(),400)<\/script></body></html>`);
-    w.document.close();
+
+  async dashboard() { need("dashboard.view"); return wait(dashboard((await db()).requests, now())); },
+  async requests(view) { need("requests.view"); return wait(list((await db()).requests, view, now())); },
+  async request(id) {
+    need("requests.view"); const s = await db(); const r = s.requests.find((x) => x.id === id);
+    if (!r) throw new Error("Request not found.");
+    return wait(detail(r, me!.role, s.settings, now()));
+  },
+  async act(id, action, payload) {
+    need("requests.view"); const s = await db(); const i = s.requests.findIndex((x) => x.id === id);
+    if (i < 0) throw new Error("Request not found.");
+    const next = apply(s.requests[i], action, { id: me!.id, name: me!.full_name, role: me!.role }, payload, now(), s.settings);
+    s.requests[i] = next; log(s, me!.email, `request_${action}`, "request", next.ref); save();
+    return detail(next, me!.role, s.settings, now());
+  },
+  async staff() { need("requests.view"); return (await db()).users.filter((u) => u.is_active).map((u): StaffMember => ({ id: u.id, name: u.full_name, role: u.role })); },
+  async settings() { need("requests.view"); return { ...(await db()).settings }; },
+  async saveSettings(v) {
+    need("settings.manage"); const s = await db();
+    const ok = (x: number, lo: number, hi: number) => Number.isFinite(x) && x >= lo && x <= hi;
+    if (!ok(v.service_fee_pct, 0, 40) || !ok(v.min_margin_pct, 0, 40) || !ok(v.validity_days, 1, 60) || !ok(v.deposit_pct, 0, 100) || !ok(v.balance_days_before, 0, 120)) throw new Error("Please check the numbers: fee and margin 0–40%, validity 1–60 days, deposit 0–100%, balance 0–120 days.");
+    s.settings = { ...v }; log(s, me!.email, "setting_changed", "setting", "quotes", { ...v }); save(); return s.settings;
   },
   async users() { need("users.manage"); return (await db()).users.map(({ pw, ...u }) => { void pw; return u; }); },
   async createUser(u) {
     need("users.manage"); const s = await db();
     if (s.users.some((x) => x.email === u.email.toLowerCase())) throw new Error("A user with this email already exists");
     if (u.password.length < 10 || !/\d/.test(u.password) || !/[a-z]/i.test(u.password)) throw new Error("Password must be at least 10 characters with letters and numbers.");
-    const nu: DemoUser = { id: uid(), email: u.email.toLowerCase(), full_name: u.full_name, role: u.role, is_active: true, last_login_at: null, created_at: new Date().toISOString(), pw: await sha(u.password) };
-    s.users.push(nu); log("user_created", "user", nu.id, { email: nu.email, role: nu.role }); save(); const { pw, ...out } = nu; void pw; return out;
+    if (!PERMS[u.role]) throw new Error("Choose Owner, Travel agent or Salesperson.");
+    const nu: DemoUser = { id: uid(), email: u.email.toLowerCase(), full_name: u.full_name, role: u.role, is_active: true, last_login_at: null, created_at: now(), pw: await sha(u.password) };
+    s.users.push(nu); log(s, me!.email, "user_created", "user", nu.id, { email: nu.email, role: nu.role }); save(); const { pw, ...out } = nu; void pw; return out;
   },
   async updateUser(id, patch) {
     need("users.manage"); const s = await db(); const u = s.users.find((x) => x.id === id)!;
-    if (u.id === me!.id && (patch.is_active === false || (patch.role && patch.role !== "SUPER_ADMIN"))) throw new Error("You cannot deactivate or demote your own account");
-    if (patch.password) { if (patch.password.length < 10) throw new Error("Password must be at least 10 characters."); u.pw = await sha(patch.password); }
-    if (patch.full_name) u.full_name = patch.full_name; if (patch.role) u.role = patch.role; if (patch.is_active !== undefined) u.is_active = patch.is_active;
-    log("user_updated", "user", id, { ...patch, password: patch.password ? "reset" : undefined }); save(); const { pw, ...out } = u; void pw; return out;
+    if (u.id === me!.id && (patch.is_active === false || (patch.role && patch.role !== "ADMIN"))) throw new Error("You cannot turn off or change your own owner account");
+    if (patch.password) { if (patch.password.length < 10) throw new Error("Password must be at least 10 characters with letters and numbers."); u.pw = await sha(patch.password); }
+    if (patch.full_name) u.full_name = patch.full_name;
+    if (patch.role) u.role = patch.role;
+    if (patch.is_active !== undefined) u.is_active = patch.is_active;
+    log(s, me!.email, "user_updated", "user", u.id, { ...patch, password: patch.password ? "reset" : undefined }); save();
+    const { pw, ...out } = u; void pw; return out;
   },
-  async settings() { need("settings.manage"); return structuredClone((await db()).settings); },
-  async saveSetting(key, value) {
-    need("settings.manage"); const s = await db();
-    if (key === "sentiment_thresholds" && !(Number(value.negative_max) < Number(value.positive_min))) throw new Error("negative_max must be lower than positive_min");
-    if (key === "confidence_thresholds" && !(Number(value.moderate) < Number(value.high))) throw new Error("moderate must be lower than high");
-    if (key === "response_clock" && Object.values(value).some((v) => !(Number(v) >= 1))) throw new Error("Every response time must be at least 1.");
-    if (key === "ai_provider" && value.provider === "claude") throw new Error("The browser demo cannot call Claude. Set ANTHROPIC_API_KEY on the server version.");
-    if (key === "keyword_watch") { if (!Array.isArray(value.words)) throw new Error("Send the watch words as a list."); value = { words: cleanWords(value.words as string[]) }; }
-    if (key === "weekly_report") {
-      const emails = String(value.recipients ?? "").replace(/;/g, ",").split(",").map((x) => x.trim()).filter(Boolean);
-      if (emails.length > 10 || emails.some((x) => !/^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(x))) throw new Error("Enter up to 10 valid email addresses, separated by commas.");
-      value = { enabled: value.enabled !== false, recipients: emails.join(", ") };
-    }
-    (s.settings as any)[key] = { ...(s.settings as any)[key], ...value }; log("setting_changed", "setting", key, value); save(); return s.settings[key];
-  },
-  async cases(view) {
-    need("feedback.view"); const s = await db(); clockChecks(); save();
-    const recs = s.feedback.filter((f) => f.case);
-    const open = recs.filter((f) => !f.case!.resolved_at).sort((a, b) => +new Date(a.case!.due_at) - +new Date(b.case!.due_at));
-    const solved = recs.filter((f) => f.case!.resolved_at).sort((a, b) => +new Date(b.case!.resolved_at!) - +new Date(a.case!.resolved_at!)).slice(0, 150);
-    const items = (view === "open" ? open : view === "solved" ? solved : [...open, ...solved]).map(caseInfo);
-    const team = s.users.filter((u) => u.is_active && u.role !== "VIEWER").map((u) => u.full_name);
-    return { items, stats: caseStats(s), team };
-  },
-  async caseAction(id, a: CaseAction) {
-    need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id);
-    if (!r || !r.case) throw new Error("Case not found"); const c = r.case; const by = me!.full_name; const now = new Date().toISOString();
-    if (a.kind === "assign") { c.assignee = a.assignee || null; addUpdate(c, "assigned", a.assignee ? `Assigned to ${a.assignee}` : "Unassigned", by); }
-    else if (a.kind === "reply") { c.first_reply_at ??= now; r.first_reply_at ??= now; r.handled_by ??= c.assignee ?? by; addUpdate(c, "reply", a.text?.trim() || "Replied to the traveler", by); }
-    else if (a.kind === "step") { const st = c.steps[a.index]; if (!st) throw new Error("Step not found"); st.done = !st.done; addUpdate(c, "step", `${st.done ? "Done" : "Not done"}: ${st.text}`, by); }
-    else if (a.kind === "note") { if (!a.text.trim()) throw new Error("Write a note first."); addUpdate(c, "note", a.text.trim(), by); }
-    else if (a.kind === "solve") { if (!c.resolved_at) { c.resolved_at = r.resolved_at = now; c.first_reply_at ??= now; r.action_status = "resolved"; r.handled_by ??= c.assignee ?? by; addUpdate(c, "solved", `Solved in ${dur(Date.now() - +new Date(c.opened_at))}${a.text?.trim() ? `: ${a.text.trim()}` : ""}`, by); } }
-    else if (a.kind === "reopen") { reopenCase(r); }
-    else if (a.kind === "traveling") { c.traveling_now = a.value; addUpdate(c, "traveling", a.value ? "Marked: traveler is on the trip now" : "Marked: traveler is not on a trip", by); }
-    log("case_" + a.kind, "feedback", id, a); save(); return caseInfo(r);
-  },
-  async client(ref) {
-    need("feedback.view"); const s = await db();
-    if (ref === "anonymous") throw new Error("Messages without a client name cannot be grouped.");
-    const rows = s.feedback.filter((f) => f.author === ref).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
-    if (!rows.length) throw new Error("Client not found");
-    const pos = rows.filter((r) => r.sentiment === "positive").length, neg = rows.filter((r) => r.sentiment === "negative").length;
-    const open = rows.filter((r) => r.case && !r.case.resolved_at).sort((a, b) => +new Date(a.case!.due_at) - +new Date(b.case!.due_at));
-    const platforms: Record<string, number> = {}; for (const r of rows) platforms[r.platform_name] = (platforms[r.platform_name] ?? 0) + 1;
-    return {
-      ref, name: clientLabel(ref, rows.find((r) => r.author_name)?.author_name), total: rows.length, first_seen: rows[rows.length - 1].created_at, last_seen: rows[0].created_at,
-      moods: { positive: pos, neutral: rows.length - pos - neg, negative: neg }, avg_score: Math.round((10 * rows.reduce((a, r) => a + r.score, 0)) / rows.length) / 10,
-      platforms, verdict: clientVerdict(rows.length, pos, neg, open.length),
-      feelings: [...rows].reverse().map((r) => ({ at: r.created_at, score: r.score, sentiment: r.sentiment })),
-      open_cases: open.map(caseInfo), timeline: rows.slice(0, 300).map(item),
-    };
-  },
-  async replyTemplates() {
-    need("feedback.view"); const s = await db();
-    const order = Object.keys(REPLY_SITUATIONS);
-    return { situations: REPLY_SITUATIONS, languages: REPLY_LANGUAGES, items: structuredClone(s.templates).sort((a, b) => order.indexOf(a.situation) - order.indexOf(b.situation) || a.language.localeCompare(b.language) || a.id - b.id) };
-  },
-  async saveTemplate(t, id) {
-    need("feedback.manage"); const s = await db();
-    if (!REPLY_SITUATIONS[t.situation]) throw new Error("Unknown situation");
-    if (t.title.trim().length < 2 || t.body.trim().length < 5) throw new Error("Give the reply a title and a message.");
-    const now = new Date().toISOString(); const clean = { situation: t.situation, language: t.language, title: t.title.trim().slice(0, 120), body: t.body.trim().slice(0, 2000) };
-    let row = id ? s.templates.find((x) => x.id === id) : undefined;
-    if (id && !row) throw new Error("Template not found");
-    if (row) Object.assign(row, clean, { situation_label: REPLY_SITUATIONS[clean.situation], updated_by: me!.full_name, updated_at: now });
-    else { row = { ...clean, id: s.seq++, situation_label: REPLY_SITUATIONS[clean.situation], is_default: false, updated_by: me!.full_name, updated_at: now }; s.templates.push(row); }
-    log(id ? "reply_template_edited" : "reply_template_added", "reply_template", String(row.id), { title: row.title }); save(); return structuredClone(row);
-  },
-  async deleteTemplate(id) {
-    need("feedback.manage"); const s = await db(); const t = s.templates.find((x) => x.id === id); if (!t) throw new Error("Template not found");
-    s.templates = s.templates.filter((x) => x.id !== id); log("reply_template_deleted", "reply_template", String(id), { title: t.title }); save();
-  },
-  async suggestions(id) {
-    need("feedback.view"); const s = await db(); const r = s.feedback.find((x) => x.id === id); if (!r) throw new Error("Feedback not found");
-    const key = replyKey(r.content, r.topic, r.intent, r.sentiment);
-    let list = s.templates.filter((t) => t.situation === key); if (!list.length) list = s.templates.filter((t) => t.situation === "general");
-    return { situation: key, situation_label: REPLY_SITUATIONS[key], templates: structuredClone(list).sort((a, b) => a.language.localeCompare(b.language) || a.id - b.id) };
-  },
-  async markReplied(id) {
-    need("feedback.manage"); const s = await db(); const r = s.feedback.find((x) => x.id === id); if (!r) throw new Error("Feedback not found");
-    const now = new Date().toISOString(); r.first_reply_at ??= now; r.handled_by ??= me!.full_name;
-    if (r.case && !r.case.first_reply_at) { r.case.first_reply_at = now; addUpdate(r.case, "reply", "Replied to the traveler", me!.full_name); }
-    log("feedback_replied", "feedback", id); save(); return detail(r);
-  },
-  async keywordWatch(days) {
-    need("feedback.view"); const s = await db(); const words = watchWords(); const since = Date.now() - days * 86400000;
-    const items = words.length ? s.feedback.filter((f) => +new Date(f.created_at) >= since && watchHits(f.content, words).length).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)).map(item) : [];
-    const counts = words.map((word) => ({ word, count: items.filter((x) => x.watch_hits.includes(word)).length }));
-    return { words, days, total: items.length, counts, items: items.slice(0, 300) };
-  },
-  async teamReport(months) { need("reports.view"); return teamReportData(await db(), months); },
-  async downloadTeamReport(months) {
-    need("reports.view"); const s = await db(); const d = teamReportData(s, months); const rows = teamRows(s, new Date(d.period.from));
-    const lines: unknown[][] = [["Team response report", `${d.months[0]} to ${d.months[d.months.length - 1]}`], [],
-      ["Staff member", "Handled", "Replied", "Solved", "Average first reply (minutes)", "Average time to solve (minutes)"],
-      ...d.staff.map((x) => [x.name, x.handled, x.replied, x.solved, x.avg_first_reply_minutes ?? "", x.avg_resolution_minutes ?? ""]), [],
-      ["Month", "Staff member", "Handled", "Replied", "Solved", "Average first reply (minutes)", "Average time to solve (minutes)"],
-      ...d.by_month.map((x) => [x.month, x.name, x.handled, x.replied, x.solved, x.avg_first_reply_minutes ?? "", x.avg_resolution_minutes ?? ""]), [],
-      ["Date", "Source", "Message", "Handled by", "Response Clock case", "First reply (minutes)", "Solved in (minutes)", "Status", "Sample data"],
-      ...rows.map((r) => [r.started_at.slice(0, 16).replace("T", " "), r.platform_name, r.content, r.handler, r.is_case ? "yes" : "no", r.first_reply_minutes ?? "", r.resolution_minutes ?? "", r.status, r.is_sample ? "yes" : "no"])];
-    download(`team-response-report-${new Date().toISOString().slice(0, 10)}.csv`, "\uFEFF" + lines.map((l) => l.map(csvCell).join(",")).join("\r\n"), "text/csv");
-    log("team_report_exported", "report", "team", { months }); save();
-  },
-  async weeklyReport() { need("reports.view"); return weeklyData(await db()); },
-  async sendWeeklyReport() {
-    need("settings.manage"); const s = await db(); const d = weeklyData(s);
-    log("weekly_report_sent", "report", "weekly", { sent: false }); save();
-    return { sent: false, detail: `Preview only: this demo cannot send email. In your live system it goes to ${d.recipients.join(", ")} every Monday at 8:00 AM.` };
-  },
-  async importRows(fileName, rows) {
-    need("feedback.manage"); const s = await db(); const now = Date.now();
-    if (rows.length > 5000) throw new Error("Import at most 5000 rows at a time.");
-    let imported = 0, duplicates = 0; const skipped: { row: number; reason: string }[] = []; const by_channel: Record<string, number> = {};
-    rows.forEach((r, i) => {
-      const n = i + 2; const msg = (r.message ?? "").trim();
-      if (msg.length < 2) { skipped.push({ row: n, reason: "No message" }); return; }
-      const when = parseDate(r.date ?? "");
-      if (!when) { skipped.push({ row: n, reason: "Date not readable" }); return; }
-      if (+new Date(when) > now + 86400000) { skipped.push({ row: n, reason: "Date is in the future" }); return; }
-      const client = (r.client ?? "").trim().slice(0, 120) || null; const code = channelCode(r.channel ?? "");
-      const rec = ingest(code, msg.slice(0, 5000), null, client, new Date(Math.min(+new Date(when), now)).toISOString(), false, false, { name: client, history: true });
-      if (rec) { imported++; by_channel[code] = (by_channel[code] ?? 0) + 1; } else duplicates++;
-    });
-    log("feedback_imported", "feedback", "", { file: fileName, imported, duplicates, skipped: skipped.length }); save();
-    return { total: rows.length, imported, duplicates, skipped: skipped.slice(0, 200), skipped_count: skipped.length, by_channel };
-  },
-  async audit(action, page = 1) { need("audit.view"); const rows = (await db()).audit.filter((r) => !action || r.action === action); return rows.slice((page - 1) * 50, page * 50); },
+  async audit(page = 1) { need("audit.view"); return (await db()).audit.slice((page - 1) * 50, page * 50); },
 };
 
 export function resetDemo() { try { localStorage.removeItem(KEY); sessionStorage.removeItem(SESSION); } catch { /* ignore */ } store = null; me = null; }
+/** Sample references a visitor can try on the tracking page. */
+export const DEMO_TRACK_HINT = { ref: "PAPH-YYYY-0007", contact: "0920 555 0106" };

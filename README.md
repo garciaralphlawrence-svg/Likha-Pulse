@@ -1,90 +1,85 @@
-# Likha Pulse — AI Sentiment Analysis & Feedback Intelligence
+# PAPH Travel and Tours — AI Trip Quotation
 
-Likha Pulse collects Facebook Page comments and Messenger chats (plus past feedback imported from Excel or CSV). It analyzes each one for **sentiment, emotion, intent, topic, sarcasm and urgency**
-in English, Filipino and Taglish, and turns the results into dashboards, priority queues, AI insights
-and PDF/Excel/CSV reports for management.
+A customer types their dream trip in plain English, Tagalog or Taglish
+(*"gusto ko pumunta London 10 days, 5 star hotel"*). A free, built-in AI quotation analyst
+reads it, prices it from the rate catalog, and suggests where to stay and what to do. A salesperson
+turns that into an offer, and a travel agent approves it before the customer receives an official quotation.
 
 **Live demo:** https://garciaralphlawrence-svg.github.io/Likha-Pulse/
-(runs fully in your browser with clearly labeled sample data, so no platform is connected).
+(runs fully in the browser with clearly labeled **sample** rates and sample requests;
+the repository and URL keep their old name for now so existing links keep working).
 
 | | |
 |---|---|
-| Frontend | React 18, Vite, Tailwind CSS, Recharts |
-| Backend | Python 3.11, FastAPI, SQLAlchemy 2, Alembic, APScheduler |
-| Database | PostgreSQL (SQLite supported for local trials and tests) |
-| AI / NLP | Built-in context-aware English/Filipino/Taglish engine (free) + optional Claude (Anthropic) engine |
-| Security | bcrypt password hashing, JWT sessions, role-based permissions, audit logs, env-based secrets |
+| Frontend | React 18, Vite, Tailwind CSS |
+| Backend | Python 3.11, FastAPI, SQLAlchemy 2, Alembic |
+| Database | PostgreSQL (SQLite for local trials and tests) |
+| AI | Built-in rule-based quotation analyst (free, no paid API, same result every time) |
+| Security | bcrypt passwords, JWT sessions, role permissions, audit log, strict CSP on the demo |
 
-## What it does
+## The flow
 
-- **Dashboard**: 8 KPI cards and 10 charts (distribution, trends by day/week/month/year, positive vs. negative,
-  platform volume, top topics, complaints, most appreciated, emotions, priorities). All are computed from the
-  database and respond to date, platform and sentiment filters.
-- **AI executive summary & insights**: generated only from real aggregates, never invented figures.
-- **Analysis engine**: reads whole sentences: negation (*hindi maganda*), intensifiers (*sobrang*),
-  contrast (*okay naman … pero …*), star ratings, and sarcasm (*"Wow, excellent service! I waited five hours."*).
-  Every result has a score (−100..+100), a separate confidence, emotion, intent, topics, priority,
-  **a written reason** and a recommended action.
-- **Priority detection**: separate from sentiment, e.g. safety/health terms are *critical* even in a neutral question.
-- **Human-in-the-loop**: reviewers correct sentiment, emotion, intent or priority; the original AI prediction,
-  correction, reviewer and timestamp are kept. Low-confidence and possible-sarcasm items are queued for review.
-- **Integrations**: Facebook Page comments and Messenger through Meta's official Graph API only. Each shows *Not connected* until real credentials
-  are configured. Demonstration data is always flagged as sample data.
-- **Notifications**: critical/high feedback, negative spikes, repeated complaints and unresolved items,
-  de-duplicated, in-app (and optional email).
-- **Reports**: 8 report types in PDF, Excel and CSV.
-- **Team tools**:
-  - *Client history*: every message from the same client in one view, with feelings over time and open cases.
-  - *Suggested replies*: ready replies in English and Taglish per situation (delays, refunds, lost passport, booking
-    confirmation, thank-you…). Shown on each message with a Copy button; the team can edit, add and delete them.
-    Nothing is ever sent automatically.
-  - *Keyword watch*: the owner picks words (refund, scam, cancel, a destination). Matching messages are flagged and raise an alert.
-  - *Team response report*: who handled each message or case, first reply time and time to solve, per staff member
-    and per month, with charts and CSV export.
-- **Weekly report**: emailed to the owner every Monday 8:00 AM (Philippine time) when SMTP is set; otherwise it is only logged.
-  The app shows a preview and the on/off and recipient settings.
-- **Import past feedback**: Excel (.xlsx) or CSV with column mapping (date, client name, message, channel), preview,
-  then import. Every row runs through the AI engine and is saved as history (counts in trends, opens no cases or alerts).
-- **Administration**: Super Admin / Admin / Analyst / Viewer roles, user management, settings and audit logs.
+1. **Customer request** (public page, no login): free text plus simple fields (destination, days or dates,
+   adults and kids, hotel level Budget / Mid-range / 5-star, budget in ₱ total or per person, interests).
+   The AI fills the fields from the text and shows what it understood, so the customer can correct it.
+2. **AI quotation analyst**: a price range per person and in total, broken into flights, hotel
+   (nights × rooms × rate), tours, transfers, local transport, visa/insurance, peak-season surcharge or off-peak
+   saving, child pricing, group discount (6+) and the PAPH service fee. Three options side by side
+   (Budget / Best value / Premium) with hotel area, a day-by-day plan, a Philippine-passport visa and
+   document checklist, and optional add-ons (insurance, private transfers, pocket WiFi, extra tours).
+   If the budget is too low it says so plainly, with the exact ₱ gap and the nearest fit
+   (lower hotel level, fewer days, an off-peak month, or a cheaper destination).
+   Always labeled "AI recommendation · not yet an offer".
+3. **Salesperson** (role SALES): queue of new requests (waiting 24h+ highlighted), takes a request,
+   starts the offer from an AI option, edits lines, cost and price, discount and notes, and sends it for approval.
+   Cannot approve.
+4. **Travel agent** (role AGENT): sees price, margin and the AI-range check, then **Approve**,
+   **Ask for changes** (back to sales with a note) or **Decline**. Approval issues a printable quotation
+   with reference number, validity date, payment schedule (deposit and balance), inclusions, exclusions,
+   cancellation note and document checklist.
+5. **Customer tracking** by reference number + mobile/email: Received → Being prepared → Offer ready →
+   Accepted → Booked. On "Offer ready" the customer can accept, request changes or ask a question.
+
+**Rules that are enforced (demo and server alike):** only valid steps per role and status; every step is
+logged with who, when and why; sales cannot approve; nobody approves their own offer; an offer below cost
+cannot be sent or approved; a margin under the minimum (8% by default) needs the agent's written reason;
+any change after approval sends it back for approval; quotations expire after 7 days and must be rechecked;
+a lost request needs a reason (price, dates, another agency, no response, plans changed).
+
+**Overview for owners and agents:** requests by stage, booking rate, average quote, offers waiting for
+a decision, requests waiting 24h+, top destinations and lost reasons.
+
+## Sample rates (replace before real use)
+
+All prices come from `backend/app/quotes/catalog.json`: 12 destinations (London, Paris, Japan, Seoul,
+Singapore, Hong Kong, Bangkok, Dubai, Bali, Taiwan, Boracay, El Nido) with flights by season, three hotel levels
+per area, tours, transfers and visa notes. **They are sample estimates, not PAPH's real rates.**
+Replace that file with PAPH's supplier rates, then run `npm run sync-catalog` in `frontend/`.
 
 ## Quick start (local)
 
 ```bash
-# 1. Backend
+# Backend
 cd backend
 python -m venv .venv && . .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # set JWT_SECRET, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD
-                            # for a quick trial use DATABASE_URL=sqlite:///./likha_pulse.db
-alembic upgrade head        # PostgreSQL (skip for SQLite: tables are created automatically)
+cp .env.example .env        # set JWT_SECRET, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD (first Owner account)
 uvicorn app.main:app --reload --port 8000
 
-# 2. Frontend (new terminal)
+# Frontend (another terminal)
 cd frontend
 npm install
-npm run dev                 # http://localhost:5173 (proxies /api to :8000)
+npm run dev                 # http://localhost:5173  (staff area at #/staff)
 ```
 
-Sign in with the Super Admin email and password from `.env`. When the database is empty, labeled sample data is
-loaded so the dashboards have something to show. Delete it any time under **Platform Integrations → Sample data**.
+Browser-only demo: `npm run build:demo` (uses `frontend/src/demo/demoApi.ts`, sample data only).
+Demo sign-ins (sample accounts, shown on the demo sign-in page): `admin@demo.paph` / `Admin2026!`,
+`sales@demo.paph` / `Sales2026!`, `agent@demo.paph` / `Agent2026!`.
 
-Or run everything with Docker: `docker compose up --build` (after creating `backend/.env`).
+## Tests
 
-## Documentation
+- `cd backend && python -m pytest -q`: API, roles, full flow, and the Python engine against the shared golden quotes.
+- `cd frontend && npm run test:engine`: the TypeScript engine and workflow against the same `backend/tests/quote_cases.json`.
 
-- [Architecture & development plan](docs/ARCHITECTURE.md)
-- [API reference](docs/API.md) (interactive docs at `http://localhost:8000/docs`)
-- [Testing](docs/TESTING.md)
-- [Deployment](docs/DEPLOYMENT.md)
-- [Administrator guide](docs/ADMIN_GUIDE.md)
-- Environment templates: [`backend/.env.example`](backend/.env.example), [`frontend/.env.example`](frontend/.env.example)
-
-## Honest limits
-
-- The built-in engine is rule-based. It handles common English/Filipino/Taglish patterns well, but subtle sarcasm
-  and context still need the human review queue, or the optional Claude engine.
-- Platform data is only collected after the business authorizes access (Meta Page admin with app permissions
-  approved through Meta App Review). The system never scrapes or bypasses restrictions.
-
----
-Built by **Likha Studio**.
+The browser and the server use the same catalog, workflow rules and test cases, so a quote is identical in both.
+More detail in `docs/` (architecture, API, admin guide, deployment, testing).

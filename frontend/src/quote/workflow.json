@@ -1,0 +1,43 @@
+{
+  "statuses": {
+    "new": { "staff": "New request", "customer": "Received", "step": 0, "open": true },
+    "ai_recommended": { "staff": "AI recommended", "customer": "Received", "step": 0, "open": true },
+    "offer_drafted": { "staff": "Offer being drafted", "customer": "Being prepared", "step": 1, "open": true },
+    "pending_approval": { "staff": "Waiting for approval", "customer": "Being prepared", "step": 1, "open": true },
+    "changes_requested": { "staff": "Changes requested", "customer": "Being prepared", "step": 1, "open": true },
+    "approved": { "staff": "Approved, ready to send", "customer": "Offer ready", "step": 2, "open": true },
+    "sent": { "staff": "Sent to customer", "customer": "Offer ready", "step": 2, "open": true },
+    "accepted": { "staff": "Customer accepted", "customer": "Accepted", "step": 3, "open": true },
+    "booked": { "staff": "Booked", "customer": "Booked", "step": 4, "open": false },
+    "declined": { "staff": "Declined", "customer": "Closed", "step": -1, "open": false },
+    "lost": { "staff": "Lost", "customer": "Closed", "step": -1, "open": false }
+  },
+  "actions": {
+    "start_offer": { "label": "Start the offer", "from": ["new", "ai_recommended"], "to": "offer_drafted", "roles": ["SALES", "ADMIN"] },
+    "save_offer": { "label": "Save the offer", "from": ["offer_drafted", "changes_requested", "approved", "sent"], "to": "offer_drafted", "roles": ["SALES", "ADMIN"] },
+    "submit": { "label": "Send for approval", "from": ["offer_drafted", "changes_requested"], "to": "pending_approval", "roles": ["SALES", "ADMIN"] },
+    "approve": { "label": "Approve", "from": ["pending_approval"], "to": "approved", "roles": ["AGENT", "ADMIN"] },
+    "request_changes": { "label": "Ask for changes", "from": ["pending_approval"], "to": "changes_requested", "roles": ["AGENT", "ADMIN"], "note": true },
+    "decline": { "label": "Decline", "from": ["pending_approval"], "to": "declined", "roles": ["AGENT", "ADMIN"], "note": true },
+    "send": { "label": "Mark as sent to customer", "from": ["approved"], "to": "sent", "roles": ["SALES", "AGENT", "ADMIN"] },
+    "customer_accept": { "label": "Accept the offer", "from": ["approved", "sent"], "to": "accepted", "roles": ["CUSTOMER"] },
+    "customer_changes": { "label": "Request changes", "from": ["approved", "sent"], "to": "changes_requested", "roles": ["CUSTOMER"], "note": true },
+    "customer_question": { "label": "Ask a question", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["CUSTOMER"], "note": true },
+    "answer": { "label": "Mark question answered", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"], "note": true },
+    "assign": { "label": "Assign", "from": ["new", "ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "approved", "sent", "accepted"], "to": null, "roles": ["SALES", "AGENT", "ADMIN"] },
+    "mark_booked": { "label": "Mark as booked (deposit received)", "from": ["accepted"], "to": "booked", "roles": ["SALES", "AGENT", "ADMIN"] },
+    "mark_lost": { "label": "Mark as lost", "from": ["new", "ai_recommended", "offer_drafted", "changes_requested", "approved", "sent", "accepted"], "to": "lost", "roles": ["SALES", "AGENT", "ADMIN"], "reason": true }
+  },
+  "lost_reasons": {
+    "price": "Price too high",
+    "dates": "Dates did not work",
+    "other_agency": "Chose another agency",
+    "no_response": "No response from customer",
+    "plans_changed": "Trip cancelled or plans changed"
+  },
+  "roles": {
+    "ADMIN": "Owner: sees and does everything",
+    "AGENT": "Travel agent: approves, asks for changes or declines offers",
+    "SALES": "Salesperson: prepares offers from the AI recommendation"
+  }
+}

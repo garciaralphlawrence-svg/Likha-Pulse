@@ -1,78 +1,44 @@
-# API Reference
+# API — PAPH Travel and Tours
 
-Base URL: `http://localhost:8000`. Interactive OpenAPI docs: **`/docs`** (Swagger) and `/redoc`.
+Base path `/api`. Interactive docs at `/docs` when the server runs. Errors return `{"detail": "<plain message>"}`.
+Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login`.
 
-Authenticate with `POST /api/auth/login`, then send `Authorization: Bearer <access_token>` on every request.
-Errors return `{"detail": "..."}` with standard status codes (400 validation, 401 not signed in, 403 missing permission,
-404 not found, 409 duplicate, 429 too many login attempts).
+## Customer (public, no login, rate-limited per IP)
+| Method | Path | Body / query | Returns |
+|---|---|---|---|
+| POST | `/public/parse` | `{text}` | What the AI understood (destination, days, adults, kids, tier, budget, month, travel_date, interests, understood[]) |
+| POST | `/public/estimate` | `{text?, input?}` (input wins) | AI recommendation: 3 priced options, verdict, budget check with nearest fits, visa notes, add-ons |
+| POST | `/public/requests` | `{customer:{name, contact}, raw_text, input, addons[]}` | `201 {ref, contact}` |
+| GET | `/public/requests/{ref}?contact=` | contact = same mobile (last 7 digits) or email | Customer view (status, timeline, AI estimate, approved offer prices only, quotation terms) or 404 |
+| POST | `/public/requests/{ref}/actions` | `{contact, action, note}` with action `customer_accept`, `customer_changes`, `customer_question` | Customer view |
 
-## Common filter parameters
+## Staff
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| POST | `/auth/login` | — | `{email, password}` -> `{access_token, user}` (5 failed tries = 15 min lock) |
+| GET | `/auth/me` | signed in | role and permissions |
+| POST | `/auth/change-password`, `/auth/forgot-password`, `/auth/reset-password` | — | reset code is logged in development only |
+| GET | `/requests?view=queue\|approval\|open\|closed\|all` | requests.view | queue = new, AI recommended, drafting, changes requested, or open with a customer question |
+| GET | `/requests/{id}` | requests.view | full request + `allowed` steps for your role, `expired`, `waiting_hours`, `terms` |
+| POST | `/requests/{id}/actions` | requests.view + workflow role | `{action, note?, option?, lines?, discount?, notes?, assignee?:{id}, reason?}` |
+| GET | `/staff` | requests.view | active staff for assigning |
+| GET | `/dashboard` | dashboard.view | totals by status, conversion, average quote, top destinations, lost reasons, offers awaiting decision |
+| GET | `/catalog` | catalog.view | the sample rates |
+| GET / PUT | `/settings` | requests.view / settings.manage | `{service_fee_pct, min_margin_pct, validity_days, deposit_pct, balance_days_before}` |
+| GET/POST/PATCH | `/users`, `/users/{id}`, GET `/roles` | users.manage | roles ADMIN, AGENT, SALES |
+| GET | `/audit?page=` | audit.view | 50 per page, newest first |
+| GET | `/health` | — | `{status, app}` |
 
-Used by `/api/feedback`, `/api/dashboard`, `/api/insights/generate` and `/api/reports`:
-
-| Param | Example | Notes |
-|---|---|---|
-| `date_from`, `date_to` | `2026-11-01` | Dashboard/insights default to the last 30 days |
-| `platform` | `facebook_page`, `messenger`, `manual`, `import` | |
-| `sentiment` | `positive` / `neutral` / `negative` | Uses the human-corrected value when one exists |
-| `priority` | `critical,high` | Comma-separated |
-| `emotion`, `intent`, `topic` | `frustration`, `complaint`, `Response Time` | `intent` accepts a comma list |
-| `review` | `unreviewed` / `pending_review` / `reviewed` | |
-| `action` | `open` / `pending_action` / `resolved` / `unresolved` | |
-| `search` | `refund` | Text contains |
-| `include_sample` | `false` | Exclude labeled sample data |
-
-## Endpoints
-
-| Method & path | Permission | Purpose |
-|---|---|---|
-| `POST /api/auth/login` | public | `{email, password}` → `{access_token, user}` (5 failed tries locks for 15 min) |
-| `GET /api/auth/me` | signed in | Current user and permissions |
-| `POST /api/auth/change-password` | signed in | `{current_password, new_password}` |
-| `POST /api/auth/forgot-password` | public | Emails a 30-minute reset code (SMTP) |
-| `POST /api/auth/reset-password` | public | `{email, token, new_password}` |
-| `GET /api/dashboard` | dashboard.view | KPIs, chart series, latest insight. `granularity=day/week/month/year` |
-| `GET /api/feedback` | feedback.view | Paged list. `page`, `page_size` (≤200) |
-| `GET /api/feedback/{id}` | feedback.view | Full analysis: reason, recommended action, AI vs corrected values, review history |
-| `POST /api/feedback` | feedback.manage | Manual entry `{content, author?, rating?}`; analyzed immediately; 409 on duplicate |
-| `POST /api/feedback/{id}/review` | feedback.review | `{sentiment?, emotion?, intent?, priority?, note, use_for_evaluation}`; empty = confirm AI result |
-| `PATCH /api/feedback/{id}/status` | feedback.manage | `{action_status}` |
-| `POST /api/feedback/{id}/reanalyze` | feedback.manage | Re-run analysis with current settings |
-| `POST /api/analyze` | feedback.view | Analyze any text without saving |
-| `GET /api/meta` | feedback.view | Allowed sentiments, emotions, intents, topics, platforms |
-| `POST /api/insights/generate` | insights.generate | Builds an insight report for the filters |
-| `GET /api/insights` | dashboard.view | Last 20 insight reports |
-| `GET /api/reports/types` | reports.view | The 8 report types |
-| `POST /api/reports` | reports.generate | `{report_type, file_format: pdf|xlsx|csv}` + filters |
-| `GET /api/reports` / `GET /api/reports/{id}/download` | reports.view | List / download |
-| `GET /api/integrations` | dashboard.view | Status, missing env vars, counts per platform |
-| `POST /api/integrations/{code}/sync` | integrations.manage | Fetch new items via the official API |
-| `POST /api/sample-data` / `DELETE /api/sample-data` | integrations.manage | Load or delete labeled sample data |
-| `GET /api/notifications` | signed in | Latest 50 alerts with read state |
-| `POST /api/notifications/{id}/read`, `/read-all`, `/check` | signed in / settings.manage | Mark read / run alert rules now |
-| `GET/POST /api/users`, `PATCH /api/users/{id}`, `GET /api/roles` | users.manage | User management |
-| `GET /api/settings`, `PUT /api/settings/{key}` | settings.manage | `sentiment_thresholds`, `confidence_thresholds`, `ai_provider`, `alerts`, `retention`, `response_clock`, `keyword_watch` (`{"words": [...]}`), `weekly_report` (`{"enabled", "recipients"}`) |
-| `GET /api/audit` | audit.view | `action`, `page` |
-| `GET /api/cases` | feedback.view | Response Clock cases. `view` = `open` (most urgent first), `solved` or `all`. Returns `items`, `stats` and `team` |
-| `POST /api/cases/{id}/actions` | feedback.manage | `{"kind": "assign" \| "reply" \| "step" \| "note" \| "solve" \| "reopen" \| "traveling", "assignee"?, "text"?, "index"?, "value"?}` |
-| `GET /api/clients/{author}` | feedback.view | Client history: every message from one client, moods, feelings over time, open cases |
-| `GET /api/reply-templates`, `POST`, `PUT/DELETE /api/reply-templates/{id}` | feedback.view / feedback.manage | Suggested reply library |
-| `GET /api/feedback/{id}/replies` | feedback.view | Best-fit replies (English + Taglish) for one message |
-| `POST /api/feedback/{id}/replied` | feedback.manage | Record the first reply time and who handled it |
-| `GET /api/keyword-watch?days=90` | feedback.view | Watch words, counts per word and matching messages |
-| `GET /api/team-report?months=6`, `GET /api/team-report/csv` | reports.view | Who handled what and how fast, per staff and month |
-| `GET /api/weekly-report`, `POST /api/weekly-report/send` | reports.view / settings.manage | Preview (+ html) and send now |
-| `POST /api/import/parse` | feedback.manage | `{"file_name", "content_base64"}` → columns, rows, guessed mapping (.xlsx or .csv) |
-| `POST /api/import` | feedback.manage | `{"file_name", "rows": [{"date","client","message","channel"}]}` → imported / duplicates / skipped |
-| `GET /api/import/template.csv` | feedback.view | Sample import file |
-| `GET /api/health` | public | Liveness check |
-
-## Example
-
-```bash
-TOKEN=$(curl -s -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"email":"admin@yourcompany.com","password":"..."}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
-curl -s -X POST localhost:8000/api/analyze -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"text":"Okay naman ang service pero sobrang tagal ng response."}'
-# → {"sentiment":"negative","score":-76,"emotion":"frustration","topics":["Response Time",...],"reason":"The message changes direction at 'pero'..."}
-```
+## Workflow steps (`action`)
+| Step | Who | From | To |
+|---|---|---|---|
+| `start_offer` | SALES, ADMIN | AI recommended | Offer being drafted (from an AI option; `option` optional) |
+| `save_offer` | SALES, ADMIN | drafting, changes requested, approved, sent | drafting; **after approval it goes back to Waiting for approval** |
+| `submit` | SALES, ADMIN | drafting, changes requested | Waiting for approval (blocked if below cost) |
+| `approve` | AGENT, ADMIN | Waiting for approval | Approved (not by the person who submitted; reason needed under minimum margin; blocked below cost) |
+| `request_changes` / `decline` | AGENT, ADMIN | Waiting for approval | Changes requested / Declined (note required) |
+| `send` | SALES, AGENT, ADMIN | Approved | Sent to customer (not if expired) |
+| `answer` | staff | any open | clears a customer question (note required) |
+| `assign` | staff | any open | salespeople may only take a request for themselves |
+| `mark_booked` | staff | Customer accepted | Booked |
+| `mark_lost` | staff | most open statuses | Lost (`reason`: price, dates, other_agency, no_response, plans_changed) |

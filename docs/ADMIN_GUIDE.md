@@ -1,98 +1,33 @@
-# Administrator Guide
+# Owner's guide — PAPH Travel and Tours
 
-## Roles
-
-| Role | Can do |
+## Who does what
+| Role | In plain words |
 |---|---|
-| **Super Admin** | Everything: users, integrations, AI settings, thresholds, alerts, retention, audit logs |
-| **Admin** | Dashboard, manage and review feedback, insights, reports, audit logs |
-| **Analyst** | Dashboard, analyze and validate feedback, insights, reports |
-| **Viewer** | Read-only dashboard and generated reports |
+| **Owner (ADMIN)** | Sees and does everything: team, settings, sample rates, activity log. Can draft and approve, but never approves an offer they sent for approval themselves. |
+| **Agent (AGENT)** | Decides on offers: approve, ask for changes (with a note) or decline. Sees the dashboard and activity log. |
+| **Salesperson (SALES)** | Works the request queue: takes a request, starts the offer from the AI option, adjusts prices or discount, sends it for approval, marks sent / booked / lost. Cannot approve. |
 
-## First day
+The first Owner account is created from `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` in `backend/.env` on first start.
+Add the rest in **Team**. Passwords need at least 10 characters with letters and numbers.
 
-1. Sign in with the Super Admin account from the server's `.env`, then change the password (API: `/api/auth/change-password`).
-2. **User Management → Add user** for each team member. Give them a temporary password (10+ characters with letters and numbers).
-3. **Platform Integrations**: confirm which platforms are connected. Until one is, the sample data keeps the dashboards populated. Delete it once real data arrives.
-4. **System Settings**: review the thresholds below.
+## Settings (Owner only)
+- **Service fee** (default 10%): PAPH's fee added to every AI estimate and new offer.
+- **Minimum margin** (default 8%): below this the agent must write a reason to approve. Below cost can never be approved.
+- **Offer validity** (default 7 days): after this the quotation shows "rates must be rechecked" and the customer cannot accept it.
+- **Deposit** (default 30%) and **balance due** (default 30 days before departure) for the payment schedule on the quotation.
 
-## Understanding the analysis
+## Sample rates — replace before real use
+Every price comes from `backend/app/quotes/catalog.json`. It is **sample data** (rough peso estimates for 12 destinations) so the
+demo works. Replace it with PAPH's real contracted rates: flights per season, hotel nightly rates per level and area, tours, transfers,
+visa fees and add-ons. Visa and document notes are general guides for Philippine passport holders; always check the latest requirements.
+After editing, run `npm run sync-catalog` in `frontend/`, then `node scripts/quote-test.mjs --update` to refresh the shared test numbers,
+and run both test suites.
 
-- **Sentiment score** (−100 to +100) is direction and strength. Default: ≤ −25 negative, ≥ +25 positive, otherwise neutral.
-- **Confidence** (0–100%) is how sure the engine is. It is *not* a guarantee. Items below the review threshold (default 70%)
-  and every possible-sarcasm item are marked **Pending review**.
-- **Priority** is urgency, judged separately: *critical* (safety, health, legal, fraud, harassment), *high* (very strong
-  dissatisfaction, repeated complaints, customers still waiting), *medium* (general complaints, problems, suggestions),
-  *low* (questions, compliments). Every item explains its level.
-- **Reason** shows the words that drove the decision, e.g. *"changes direction at 'pero'; the part after it is negative"*.
+## Sample requests
+With `SEED_SAMPLE_DATA=true`, an empty database gets 10 requests named "Sample customer: ..." spread across the whole flow.
+They are marked as samples everywhere. Set it to `false` for a clean start.
 
-## Daily routine (suggested)
-
-1. Check the notification bell: critical items first.
-2. **Priority Concerns** → handle *Critical & high*, then set each to **Resolved** in the detail panel.
-3. **Feedback Monitoring** → filter *Review: Pending review* and confirm or correct each item.
-4. Weekly: **AI Insights → Generate new analysis** for the last 7 days; monthly: **Reports → Monthly Sentiment Report**.
-
-## Response Clock
-
-Every **Urgent** or **Important** message becomes a case with a deadline (default: Urgent 24 hours, Important 48 hours; first reply within 1 hour and 4 hours).
-The color shows how much of the time is used:
-
-| Color | Time used | Meaning |
-|---|---|---|
-| Green · On track | 0–25% (0–6h for Urgent) | Plenty of time |
-| Yellow · Needs progress | 25–50% (6–12h) | Make progress now |
-| Orange · At risk | 50–75% (12–18h) | Getting late |
-| Red · Due soon | 75–100% (18–24h) | Escalated to the manager automatically, alert sent |
-| Overdue | past the deadline | Alert sent |
-
-Each case shows the travel situation (on-trip emergency, lost passport, flight or transfer, hotel, refund, visa, booking, tour),
-whether the traveler is on a trip right now, the owner, the first reply time, and a ready **playbook** checklist.
-The team logs replies, steps and notes in the timeline and marks the case as solved. Marking a message as done in the Inbox also solves its case.
-Change the hours in **Settings → Response clock**. Playbooks are in `backend/app/services/playbooks.json`.
-
-## Team tools
-
-- **Client history**: open any message and tap *See all messages from this client*. Names are shown only when
-  `ANONYMIZE_AUTHORS=false`; otherwise each client gets a short private code (e.g. *Client 7F3A*).
-- **Suggested Replies**: each message shows ready replies in Taglish and English with a Copy button. Edit them under
-  *Suggested Replies*. Replies are never sent automatically. Tap *I replied* after answering so the Team Report counts it.
-- **Keyword Watch**: the owner adds words; matching messages get a red tag in the Inbox and an alert.
-- **Team Report**: first reply time and time to solve per staff member and per month. *Export CSV* downloads it.
-- **Weekly Report**: preview, on/off and recipients (empty = the owner account). Sent Mondays 8:00 AM once email is set up.
-- **Import Past Feedback**: upload .xlsx or .csv, match the columns, check the preview, import. Download the sample CSV first.
-
-## Human validation
-
-Open any item, change sentiment/emotion/intent/priority, add a note and **Save correction** (or **Confirm AI result**).
-The AI's original prediction is preserved. Tick *approved for model evaluation data* only for corrections your team
-has agreed can be used to measure or tune the engine.
-
-## Settings reference
-
-| Setting | Default | Effect |
-|---|---|---|
-| Sentiment thresholds | −25 / +25 | Label cut-offs for new analyses (re-run analysis to apply to older items) |
-| Confidence thresholds | 90% / 70% | High-confidence band / manual-review cut-off |
-| AI engine | Built-in | Switch to Claude when `ANTHROPIC_API_KEY` is configured |
-| Negative spike | 30% | Alert when last week's negative share rises this much vs. the week before |
-| Repeated complaints | 3 | Alert when a topic gets this many negative messages in 7 days |
-| Unresolved after | 3 days | Alert for open high/critical items |
-| Email alerts | off | Also email Admins (needs SMTP variables) |
-| Retention | 730 / 1095 days | Feedback / audit logs older than this are deleted nightly |
-
-## Password resets
-
-A Super Admin can set a new password under **User Management → Reset password**. With SMTP configured, users can
-request a reset code via `/api/auth/forgot-password`; codes expire after 30 minutes and are stored only as hashes.
-
-## Audit log
-
-Every login (and failed login), review, status change, report, user change, settings change, sync and sample-data
-action is recorded with the user, time and IP.
-
-## Privacy
-
-- Author names/IDs are stored as salted hashes by default (`ANONYMIZE_AUTHORS=true`).
-- Only data the business is authorized to access through official APIs is collected.
-- API keys and tokens live only in server environment variables, never in the database or the browser.
+## Good habits
+- Work the queue oldest first; requests waiting more than 24 hours are highlighted.
+- Use **Ask for changes** with a clear note instead of declining when the offer can be fixed.
+- When a request is lost, pick the honest reason: the dashboard shows why deals are lost.

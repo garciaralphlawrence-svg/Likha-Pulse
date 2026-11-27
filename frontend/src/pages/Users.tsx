@@ -7,8 +7,8 @@ import { fmtDate } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 
 const ROLES = [
-  { value: "SUPER_ADMIN", label: "Owner — can do everything" }, { value: "ADMIN", label: "Manager — handles messages & reports" },
-  { value: "ANALYST", label: "Staff — reviews messages" }, { value: "VIEWER", label: "View only — sees the overview" },
+  { value: "ADMIN", label: "Owner: sees and does everything" }, { value: "AGENT", label: "Travel agent: approves offers" },
+  { value: "SALES", label: "Salesperson: prepares offers" },
 ];
 
 export default function Users() {
@@ -16,12 +16,12 @@ export default function Users() {
   const { data, loading, error, reload } = useAsync(() => api.users(), []);
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<unknown>(null);
-  const [form, setForm] = useState({ email: "", full_name: "", role: "ANALYST", password: "" });
+  const [form, setForm] = useState({ email: "", full_name: "", role: "SALES", password: "" });
   const upd = async (id: string, patch: any) => { setErr(null); try { await api.updateUser(id, patch); reload(); } catch (e) { setErr(e); } };
-  const create = async () => { setErr(null); try { await api.createUser(form); setAdding(false); setForm({ email: "", full_name: "", role: "ANALYST", password: "" }); reload(); } catch (e) { setErr(e); } };
+  const create = async () => { setErr(null); try { await api.createUser(form); setAdding(false); setForm({ email: "", full_name: "", role: "SALES", password: "" }); reload(); } catch (e) { setErr(e); } };
   return (
     <>
-      <PageHeader eyebrow="Team" title="Who can use Likha Pulse" description="Invite your staff and choose what each person can see and do."
+      <PageHeader eyebrow="Team" title="Who can use the workspace" description="Salespeople prepare offers, travel agents approve them, owners see everything."
         actions={<button className="btn-primary" onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" />Add a person</button>} />
       <ErrorBox error={error || (!adding && err)} />
       <Card>

@@ -50,3 +50,12 @@ main { overflow-x: clip; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff !important; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+}
+details > summary::-webkit-details-marker { display: none; }

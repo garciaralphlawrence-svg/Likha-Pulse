@@ -1,107 +1,181 @@
-"""End-to-end API tests: auth, RBAC, data-driven dashboard, feedback workflow, review audit, reports, settings."""
+"""End-to-end API tests: auth, roles, the public request form, tracking, and the full quotation flow."""
+CONTACT = "0917 123 4567"
+
+
+def new_request(client, text="gusto ko pumunta London 10 days, 5 star hotel", inp=None, addons=None):
+    body = {"customer": {"name": "Test Customer", "contact": CONTACT}, "raw_text": text,
+            "input": inp or {"destination": "london", "days": 10, "adults": 1, "tier": "luxury"}, "addons": addons or ["wifi"]}
+    r = client.post("/api/public/requests", json=body)
+    assert r.status_code == 201, r.text
+    return r.json()["ref"]
+
+
+def find_id(client, headers, ref):
+    rows = client.get("/api/requests?view=all", headers=headers).json()
+    return next(x["id"] for x in rows if x["ref"] == ref)
+
+
+def act(client, headers, rid, action, **payload):
+    return client.post(f"/api/requests/{rid}/actions", json={"action": action, **payload}, headers=headers)
 
 
 def test_health(client):
-    assert client.get("/api/health").json()["status"] == "ok"
+    j = client.get("/api/health").json()
+    assert j["status"] == "ok" and j["app"] == "PAPH Travel and Tours"
 
 
 def test_login_rejects_bad_password(client):
-    assert client.post("/api/auth/login", json={"email": "admin@pulse-test.com", "password": "wrong-pass1"}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": "owner@paph-test.com", "password": "wrong-pass1"}).status_code == 401
 
 
 def test_requires_auth(client):
+    assert client.get("/api/requests").status_code == 401
     assert client.get("/api/dashboard").status_code == 401
 
 
-def test_dashboard_numbers_come_from_database(client, admin_headers):
-    d = client.get("/api/dashboard?date_from=2000-01-01", headers=admin_headers).json()
-    k = d["kpis"]
-    assert k["total"] > 50, "sample data should be seeded"
-    assert k["positive"] + k["neutral"] + k["negative"] == k["total"]
-    assert k["sample_count"] == k["total"]  # nothing real connected in tests
-    listed = client.get("/api/feedback?date_from=2000-01-01&page_size=1", headers=admin_headers).json()["total"]
-    assert listed == k["total"]
-    neg = client.get("/api/dashboard?date_from=2000-01-01&sentiment=negative", headers=admin_headers).json()["kpis"]
-    assert neg["total"] == k["negative"]
+def test_me_has_role(client, admin_headers):
+    me = client.get("/api/auth/me", headers=admin_headers).json()
+    assert me["role"] == "ADMIN" and "requests.approve" in me["permissions"]
 
 
-def test_manual_feedback_analysis_and_duplicates(client, admin_headers):
-    body = {"content": "Okay naman ang service pero sobrang tagal ng response.", "author": "test-user-1"}
-    r = client.post("/api/feedback", json=body, headers=admin_headers)
-    assert r.status_code == 201, r.text
-    fb = r.json()
-    assert fb["sentiment"] == "negative" and fb["emotion"] == "frustration" and fb["topic"] == "Response Time"
-    assert fb["reason"] and fb["recommended_action"] and fb["priority_reason"]
-    assert client.post("/api/feedback", json=body, headers=admin_headers).status_code == 409
+def test_sample_requests_are_seeded_and_labeled(client, admin_headers):
+    rows = client.get("/api/requests?view=all", headers=admin_headers).json()
+    samples = [r for r in rows if r["is_sample"]]
+    assert len(samples) >= 10 and all(r["customer_name"].startswith("Sample") for r in samples)
+    assert {r["status"] for r in samples} >= {"ai_recommended", "offer_drafted", "pending_approval", "changes_requested", "sent", "booked", "lost", "declined"}
 
 
-def test_human_review_keeps_ai_prediction(client, admin_headers):
-    fb = client.post("/api/feedback", json={"content": "Wow, excellent service! I waited for five hours.", "author": "u2"},
-                     headers=admin_headers).json()
-    assert fb["review_status"] == "pending_review" and fb["possible_sarcasm"]
-    ai_level = fb["priority"]
-    new_level = "critical" if ai_level != "critical" else "low"
-    r = client.post(f"/api/feedback/{fb['id']}/review", json={"priority": new_level, "note": "Confirmed sarcasm"}, headers=admin_headers).json()
-    assert r["priority"] == new_level and r["ai"]["priority"] == ai_level  # AI prediction preserved
-    assert r["review_status"] == "reviewed" and r["reviews"][0]["original"] == ai_level
-    logs = client.get("/api/audit?action=feedback_reviewed", headers=admin_headers).json()
-    assert logs and logs[0]["entity_id"] == fb["id"]
+def test_public_parse_and_estimate(client):
+    p = client.post("/api/public/parse", json={"text": "budget friendly London 10 days ₱80,000"}).json()
+    assert p["destination"] == "london" and p["budget"] == 80000 and p["tier"] == "budget"
+    est = client.post("/api/public/estimate", json={"text": "solo trip, budget friendly London 10 days ₱80,000"}).json()
+    assert est["budget"]["status"] == "over" and "Nearest fit" in est["verdict"]
+    assert est["budget"]["best"]["destination"] == "seoul"
 
 
-def test_rbac_viewer_cannot_manage(client, admin_headers):
-    r = client.post("/api/users", json={"email": "viewer@pulse-test.com", "full_name": "View Only", "role": "VIEWER", "password": "ViewerPass123"},
-                    headers=admin_headers)
-    assert r.status_code == 201, r.text
-    tok = client.post("/api/auth/login", json={"email": "viewer@pulse-test.com", "password": "ViewerPass123"}).json()["access_token"]
-    h = {"Authorization": f"Bearer {tok}"}
-    assert client.get("/api/dashboard", headers=h).status_code == 200
-    assert client.get("/api/feedback", headers=h).status_code == 403
-    assert client.get("/api/users", headers=h).status_code == 403
-    assert client.put("/api/settings/sentiment_thresholds", json={"negative_max": -10}, headers=h).status_code == 403
+def test_public_input_is_validated(client):
+    body = {"customer": {"name": "X", "contact": CONTACT}, "raw_text": "", "input": {"destination": "london"}, "addons": []}
+    assert client.post("/api/public/requests", json=body).status_code == 400  # name too short
+    body["customer"]["name"] = "Real Name"
+    body["input"]["days"] = "ten"
+    assert client.post("/api/public/requests", json=body).status_code == 400
 
 
-def test_weak_password_rejected(client, admin_headers):
-    r = client.post("/api/users", json={"email": "weak@pulse-test.com", "full_name": "Weak", "role": "ANALYST", "password": "short"}, headers=admin_headers)
-    assert r.status_code == 400
+def test_tracking_needs_matching_contact(client):
+    ref = new_request(client)
+    assert client.get(f"/api/public/requests/{ref}", params={"contact": "0999 999 9999"}).status_code == 404
+    v = client.get(f"/api/public/requests/{ref}", params={"contact": "+63 917 123 4567"}).json()
+    assert v["customer_status"] == "Received" and v["offer"] is None and v["recommendation"]["recommended"] == "premium"
+    assert "cost" not in str(v.get("offer"))
 
 
-def test_settings_validation_and_claude_requires_key(client, admin_headers):
-    assert client.put("/api/settings/sentiment_thresholds", json={"negative_max": 30, "positive_min": 10}, headers=admin_headers).status_code == 400
-    assert client.put("/api/settings/ai_provider", json={"provider": "claude"}, headers=admin_headers).status_code == 400
+def test_rbac(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    assert client.get("/api/users", headers=staff["SALES"]).status_code == 403
+    assert client.get("/api/dashboard", headers=staff["SALES"]).status_code == 403
+    assert client.put("/api/settings", json={"service_fee_pct": 5}, headers=staff["AGENT"]).status_code == 403
+    assert client.get("/api/settings", headers=staff["SALES"]).json()["min_margin_pct"] == 8
+    r = act(client, staff["AGENT"], rid, "start_offer")
+    assert r.status_code == 400 and "role" in r.json()["detail"]
+    assert act(client, staff["SALES"], rid, "start_offer").status_code == 200
+    assert act(client, staff["SALES"], rid, "submit").status_code == 200
+    r = act(client, staff["SALES"], rid, "approve")
+    assert r.status_code == 400 and "role" in r.json()["detail"]
+    assert act(client, staff["AGENT"], rid, "nonsense").status_code == 400
+
+
+def test_full_flow_to_booked(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    d = act(client, staff["SALES"], rid, "start_offer").json()
+    assert d["status"] == "offer_drafted" and d["offer"]["totals"]["ai_check"] == "inside" and "submit" in d["allowed"]
+    d = act(client, staff["SALES"], rid, "submit").json()
+    assert d["status"] == "pending_approval"
+    d = act(client, staff["AGENT"], rid, "approve").json()
+    assert d["status"] == "approved" and d["terms"]["ref"] == ref and d["terms"]["deposit"] > 0
+    v = client.get(f"/api/public/requests/{ref}", params={"contact": CONTACT}).json()
+    assert v["customer_status"] == "Offer ready" and v["offer"]["total"] == d["offer"]["totals"]["price"] and "customer_accept" in v["can"]
+    assert all(set(line) == {"label", "detail", "price"} for line in v["offer"]["lines"])
+    r = client.post(f"/api/public/requests/{ref}/actions", json={"contact": CONTACT, "action": "customer_question", "note": "Breakfast included?"})
+    assert r.status_code == 200 and r.json()["question"]["text"] == "Breakfast included?"
+    assert client.post(f"/api/public/requests/{ref}/actions", json={"contact": CONTACT, "action": "approve"}).status_code == 400
+    assert act(client, staff["SALES"], rid, "answer", note="Yes, daily breakfast").status_code == 200
+    v = client.post(f"/api/public/requests/{ref}/actions", json={"contact": CONTACT, "action": "customer_accept"}).json()
+    assert v["status"] == "accepted"
+    d = act(client, staff["SALES"], rid, "mark_booked").json()
+    assert d["status"] == "booked" and [e["action"] for e in d["events"]][-1] == "mark_booked"
+    logs = client.get("/api/audit", headers=staff["ADMIN"]).json()
+    assert any(x["action"] == "request_mark_booked" and x["entity_id"] == ref for x in logs)
+
+
+def test_ask_for_changes_and_reapproval(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    act(client, staff["SALES"], rid, "start_offer")
+    act(client, staff["SALES"], rid, "submit")
+    assert act(client, staff["AGENT"], rid, "request_changes").status_code == 400  # note required
+    d = act(client, staff["AGENT"], rid, "request_changes", note="Use a 4-star hotel").json()
+    assert d["status"] == "changes_requested"
+    d = act(client, staff["SALES"], rid, "save_offer", discount=1000).json()
+    assert d["status"] == "offer_drafted"
+    act(client, staff["SALES"], rid, "submit")
+    d = act(client, staff["AGENT"], rid, "approve").json()
+    assert d["status"] == "approved"
+    d = act(client, staff["SALES"], rid, "save_offer", discount=2000).json()
+    assert d["status"] == "pending_approval" and d["approval"] is None  # any change after approval needs approval again
+
+
+def test_self_approval_and_below_cost_blocked(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["ADMIN"], ref)
+    d = act(client, staff["ADMIN"], rid, "start_offer").json()
+    act(client, staff["ADMIN"], rid, "submit")
+    r = act(client, staff["ADMIN"], rid, "approve")
+    assert r.status_code == 400 and "someone else" in r.json()["detail"]
+    act(client, staff["AGENT"], rid, "request_changes", note="Recheck")
+    r = act(client, staff["ADMIN"], rid, "save_offer", discount=d["offer"]["totals"]["margin"] + 10000)
+    assert r.json()["offer"]["totals"]["below_cost"]
+    r = act(client, staff["ADMIN"], rid, "submit")
+    assert r.status_code == 400 and "below cost" in r.json()["detail"]
+
+
+def test_lost_needs_reason_and_dashboard(client, staff):
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    assert act(client, staff["SALES"], rid, "mark_lost").status_code == 400
+    assert act(client, staff["SALES"], rid, "mark_lost", reason="price").json()["status"] == "lost"
+    dash = client.get("/api/dashboard", headers=staff["AGENT"]).json()
+    rows = client.get("/api/requests?view=all", headers=staff["AGENT"]).json()
+    assert dash["total"] == len(rows) and sum(s["count"] for s in dash["by_status"]) == dash["total"]
+    assert any(x["reason"] == "price" for x in dash["lost_reasons"]) and dash["top_destinations"][0]["code"] == "london"
+    assert dash["sample_count"] == sum(1 for r in rows if r["is_sample"])
+
+
+def test_settings_validation(client, admin_headers):
     s = client.get("/api/settings", headers=admin_headers).json()
-    assert s["ai_provider"]["api_key_set"] is False
+    assert client.put("/api/settings", json={**s, "service_fee_pct": 90}, headers=admin_headers).status_code == 400
+    r = client.put("/api/settings", json={**s, "validity_days": 10}, headers=admin_headers)
+    assert r.status_code == 200 and r.json()["validity_days"] == 10
+    client.put("/api/settings", json=s, headers=admin_headers)
 
 
-def test_integrations_report_not_connected(client, admin_headers):
-    items = {i["code"]: i for i in client.get("/api/integrations", headers=admin_headers).json()}
-    assert "google_business" not in items and set(items) == {"facebook_page", "messenger", "manual", "import"}
-    assert items["facebook_page"]["status"] == "not_connected"
-    assert items["facebook_page"]["missing"]
-    r = client.post("/api/integrations/messenger/sync", headers=admin_headers).json()
-    assert r["status"] == "not_connected" and r["added"] == 0
+def test_staff_list_and_assign(client, staff):
+    people = client.get("/api/staff", headers=staff["SALES"]).json()
+    sales = next(p for p in people if p["role"] == "SALES")
+    agent = next(p for p in people if p["role"] == "AGENT")
+    ref = new_request(client)
+    rid = find_id(client, staff["SALES"], ref)
+    assert act(client, staff["SALES"], rid, "assign", assignee={"id": agent["id"]}).status_code == 400  # sales only takes for themselves
+    d = act(client, staff["SALES"], rid, "assign", assignee={"id": sales["id"]}).json()
+    assert d["assignee"]["name"] == "Test Sales"
 
 
-def test_insights_use_real_numbers(client, admin_headers):
-    ins = client.post("/api/insights/generate?date_from=2000-01-01", headers=admin_headers).json()
-    total = ins["aggregates"]["current"]["total"]
-    assert str(total) in ins["summary"]["overall"]
-    assert "sample messages" in ins["summary"]["overall"]
-
-
-def test_reports_all_formats(client, admin_headers):
-    for fmt in ("pdf", "xlsx", "csv"):
-        r = client.post("/api/reports?date_from=2000-01-01", json={"report_type": "overall", "file_format": fmt}, headers=admin_headers)
-        assert r.status_code == 200, r.text
-        dl = client.get(f"/api/reports/{r.json()['id']}/download", headers=admin_headers)
-        assert dl.status_code == 200 and len(dl.content) > 500
-    assert client.post("/api/reports", json={"report_type": "platform", "file_format": "pdf"}, headers=admin_headers).status_code == 400
-
-
-def test_notifications_are_deduplicated(client, admin_headers):
-    client.post("/api/notifications/check", headers=admin_headers)
-    first = client.get("/api/notifications", headers=admin_headers).json()["items"]
-    client.post("/api/notifications/check", headers=admin_headers)
-    second = client.get("/api/notifications", headers=admin_headers).json()["items"]
-    assert len(first) == len(second)
-    keys = [(n["kind"], n["feedback_id"], n["title"]) for n in second]
-    assert len(keys) == len(set(keys))
+def test_unknown_destination_goes_to_manual(client, staff):
+    ref = new_request(client, "We want to go to Iceland for 8 days", {"place_text": "Iceland", "days": 8, "adults": 2}, [])
+    rid = find_id(client, staff["SALES"], ref)
+    d = client.get(f"/api/requests/{rid}", headers=staff["SALES"]).json()
+    assert d["recommendation"]["kind"] == "manual" and "Iceland" in d["recommendation"]["verdict"]
+    d = act(client, staff["SALES"], rid, "start_offer").json()
+    assert d["offer"]["lines"] == []
+    assert act(client, staff["SALES"], rid, "submit").status_code == 400

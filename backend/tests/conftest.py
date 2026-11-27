@@ -7,17 +7,22 @@ _tmp = tempfile.mkdtemp()
 os.environ.update({
     "DATABASE_URL": f"sqlite:///{_tmp}/test.db",
     "JWT_SECRET": "test-secret-0123456789abcdef0123456789",
-    "SUPERADMIN_EMAIL": "admin@pulse-test.com",
-    "SUPERADMIN_PASSWORD": "AdminPass123",
-    "ENABLE_SCHEDULER": "false",
+    "SUPERADMIN_EMAIL": "owner@paph-test.com",
+    "SUPERADMIN_PASSWORD": "OwnerPass123",
+    "SUPERADMIN_NAME": "Test Owner",
     "SEED_SAMPLE_DATA": "true",
-    "REPORTS_DIR": f"{_tmp}/reports",
-    "ANTHROPIC_API_KEY": "",
+    "PUBLIC_RATE_LIMIT": "1000",
 })
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
+
+
+def login(client, email, password):
+    r = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
 @pytest.fixture(scope="session")
@@ -28,6 +33,16 @@ def client():
 
 @pytest.fixture(scope="session")
 def admin_headers(client):
-    r = client.post("/api/auth/login", json={"email": "admin@pulse-test.com", "password": "AdminPass123"})
-    assert r.status_code == 200, r.text
-    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+    return login(client, "owner@paph-test.com", "OwnerPass123")
+
+
+@pytest.fixture(scope="session")
+def staff(client, admin_headers):
+    """One salesperson and one agent (plus the Owner)."""
+    out = {"ADMIN": admin_headers}
+    for role, email in (("SALES", "sales@paph-test.com"), ("AGENT", "agent@paph-test.com")):
+        r = client.post("/api/users", json={"email": email, "full_name": f"Test {role.title()}", "role": role, "password": "StaffPass123"},
+                        headers=admin_headers)
+        assert r.status_code == 201, r.text
+        out[role] = login(client, email, "StaffPass123")
+    return out

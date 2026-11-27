@@ -1,23 +1,18 @@
-"""Roles and permissions (Module 10)."""
+"""Roles and permissions. The workflow itself (who may approve, draft, etc.) is checked again in app/quotes/workflow.py."""
 PERMISSIONS = {
-    "dashboard.view": "View dashboard and analytics",
-    "feedback.view": "View feedback",
-    "feedback.manage": "Change feedback status, re-run analysis, add manual feedback",
-    "feedback.review": "Correct AI classifications (human validation)",
-    "insights.generate": "Generate AI insights",
-    "reports.view": "View approved reports",
-    "reports.generate": "Generate and export reports",
-    "integrations.manage": "Configure platform integrations and run syncs",
-    "users.manage": "Create, edit and deactivate users",
-    "settings.manage": "Configure AI settings, thresholds and alerts",
-    "audit.view": "View audit logs",
+    "dashboard.view": "See the dashboard",
+    "requests.view": "See travel requests and their AI recommendation",
+    "requests.sell": "Draft offers and send them for approval (salesperson)",
+    "requests.approve": "Approve, ask for changes or decline offers (agent)",
+    "catalog.view": "See the sample rates",
+    "users.manage": "Add, edit and turn off staff accounts",
+    "settings.manage": "Change service fee, minimum margin, validity and payment terms",
+    "audit.view": "See the activity log",
 }
 
 ROLES = {
-    "SUPER_ADMIN": ("Full system access", list(PERMISSIONS)),
-    "ADMIN": ("Manage feedback, reports and reviews", ["dashboard.view", "feedback.view", "feedback.manage", "feedback.review",
-                                                      "insights.generate", "reports.view", "reports.generate", "audit.view"]),
-    "ANALYST": ("Analyze feedback and validate classifications", ["dashboard.view", "feedback.view", "feedback.review",
-                                                                 "insights.generate", "reports.view", "reports.generate"]),
-    "VIEWER": ("Read-only dashboard and approved reports", ["dashboard.view", "reports.view"]),
+    "ADMIN": ("Owner: sees and does everything", list(PERMISSIONS)),
+    "AGENT": ("Travel agent: approves, asks for changes or declines offers",
+              ["dashboard.view", "requests.view", "requests.approve", "audit.view", "catalog.view"]),
+    "SALES": ("Salesperson: prepares offers from the AI recommendation", ["requests.view", "requests.sell", "catalog.view"]),
 }

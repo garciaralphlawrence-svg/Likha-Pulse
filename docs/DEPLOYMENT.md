@@ -1,68 +1,22 @@
-# Deployment
+# Deployment — PAPH Travel and Tours
 
-## 1. Database
+## Public demo (no server)
+The GitHub Pages demo is the frontend built with `npm run build:demo`. It runs the same engine and workflow in the browser with
+clearly labeled sample data saved in the visitor's browser only.
 
-Create a PostgreSQL 14+ database (managed options: Neon, Supabase, Render, Railway, or your own server) and set
-`DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME`.
+## Full system
+1. Server with Docker (or Python 3.11 + Node 20) and PostgreSQL 16.
+2. `backend/.env` from `backend/.env.example`: set `ENVIRONMENT=production`, a long random `JWT_SECRET`, `DATABASE_URL`,
+   `CORS_ORIGINS` (your frontend address) and the first Owner account. Never commit `.env`.
+3. `docker compose up -d --build` (runs `alembic upgrade head`, then the API on port 8000; the web app on port 5173).
+   Without Docker: `cd backend && pip install -r requirements.txt && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000`,
+   then `cd frontend && npm ci && VITE_API_URL=https://api.example.com npm run build` and serve `frontend/dist`.
+4. Put both behind HTTPS (e.g. Caddy or Nginx with Let's Encrypt).
+5. Sign in as the Owner, add the team, review the settings, and replace the sample rates (see ADMIN_GUIDE.md).
 
-## 2. Backend (FastAPI)
-
-Any host that runs Docker or Python works (Render, Railway, Fly.io, a VPS).
-
-```bash
-cd backend
-cp .env.example .env     # fill in every REQUIRED value; ENVIRONMENT=production
-docker build -t likha-pulse-api .
-docker run -d --env-file .env -p 8000:8000 likha-pulse-api   # runs `alembic upgrade head` then uvicorn
-```
-
-Production checklist:
-- `ENVIRONMENT=production` (the app refuses to start with the default JWT secret).
-- Long random `JWT_SECRET` and `AUTHOR_HASH_SALT`; strong `SUPERADMIN_PASSWORD` (change it after first login).
-- `CORS_ORIGINS` set to the exact frontend URL.
-- Serve over HTTPS (the platform's TLS, or a reverse proxy such as Caddy/Nginx).
-- Back up the database daily; keep `generated_reports/` on a persistent volume or regenerate reports as needed.
-- Run a single API instance when the built-in scheduler is enabled (or set `ENABLE_SCHEDULER=false` on extra
-  instances), so syncs and alerts don't run twice.
-
-## 3. Frontend
-
-```bash
-cd frontend
-echo "VITE_API_URL=https://your-api.example.com" > .env.production
-npm ci && npm run build      # static files in dist/
-```
-
-Host `dist/` on any static host (Cloudflare Pages, Netlify, Vercel, Nginx). Routing uses `#/` URLs, so no rewrite rules are needed.
-
-`docker compose up --build` runs PostgreSQL, the API and the web app together for an on-premise install.
-
-## 4. Connecting platforms (official APIs only)
-
-| Platform | Requirements | Environment variables |
-|---|---|---|
-| Facebook Page comments | Page admin; Meta app with `pages_read_engagement` and `pages_read_user_content` approved through App Review; long-lived Page access token | `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN` |
-| Messenger | Same Meta app plus `pages_messaging` approval | same as above |
-
-After setting the variables, restart the API, open **Platform Integrations** and click **Sync now**. The scheduler
-then syncs every 30 minutes. OAuth access tokens expire, so use a refresh process or long-lived Page tokens and
-update the variables when they change. If a sync fails, the integration shows **Error** with the platform's message.
-
-**Weekly report email**: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (and `SMTP_TLS`). The job runs every
-Monday 00:00 UTC (8:00 AM Philippine time). Without SMTP nothing is sent; the job only logs.
-
-**Upgrading an existing database**: run `alembic upgrade head`. Migration `c4e8a2f17d30` adds the team-tool columns and
-retires Google reviews (sample Google rows are deleted; any real ones are kept as imported history).
-
-## 5. Optional Claude engine
-
-Set `ANTHROPIC_API_KEY` (and optionally `CLAUDE_MODEL`, default `claude-opus-5-5`), restart, then choose **Claude**
-under **System Settings → AI analysis engine**. Each analyzed message is one API request billed by Anthropic.
-If Claude is unavailable or declines a request, the built-in engine is used automatically for that message.
-
-## 6. Public demo (GitHub Pages)
-
-```bash
-cd frontend && npm run build:demo     # dist/ built with base /Likha-Pulse/ and in-browser demo mode
-```
-Publish `dist/` to the `gh-pages` branch. The demo never contacts a server.
+## Security notes
+- Passwords are bcrypt-hashed; sessions are signed JWTs (2 hours by default); 5 failed sign-ins lock the email for 15 minutes.
+- Public endpoints are rate-limited per IP (`PUBLIC_RATE_LIMIT`) and only accept known fields with length limits.
+- Customers see their request only with the reference number plus the same mobile number or email, and never see costs or margins.
+- Every workflow step and admin change is written to the activity log.
+- The server refuses to start in production with the default `JWT_SECRET`.

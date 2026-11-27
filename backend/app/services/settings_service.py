@@ -2,19 +2,15 @@
 from sqlalchemy.orm import Session
 
 from app.models import SystemSetting
+from app.quotes.workflow import DEFAULT_SETTINGS
 
 DEFAULTS: dict[str, dict] = {
-    "sentiment_thresholds": {"negative_max": -25, "positive_min": 25},
-    "confidence_thresholds": {"high": 0.90, "moderate": 0.70},  # below moderate -> manual review
-    "ai_provider": {"provider": "rule", "claude_model": "claude-opus-5-5", "api_key_set": False},
-    "alerts": {"negative_spike_pct": 30, "repeated_complaint_count": 3, "unresolved_days": 3, "email_enabled": False},
-    "retention": {"feedback_days": 730, "audit_days": 1095},
-    "response_clock": {"urgent_hours": 24, "important_hours": 48, "urgent_reply_minutes": 60, "important_reply_minutes": 240},
-    # Keyword watch: messages containing these words are flagged and raise an alert
-    "keyword_watch": {"words": ["refund", "scam", "cancel", "estafa", "Boracay"]},
-    # Weekly report: emailed every Monday morning (8 AM Philippine time). Empty recipients = every Owner account.
-    "weekly_report": {"enabled": True, "recipients": "", "last_sent_week": ""},
+    # Quotation terms: PAPH service fee, minimum margin before the agent must give a reason, validity and payment schedule
+    "quotes": dict(DEFAULT_SETTINGS),
 }
+LIMITS = {"service_fee_pct": (0, 40), "min_margin_pct": (0, 40), "validity_days": (1, 60), "deposit_pct": (0, 100), "balance_days_before": (0, 120)}
+LABELS = {"service_fee_pct": "Service fee", "min_margin_pct": "Minimum margin", "validity_days": "Offer validity (days)",
+          "deposit_pct": "Deposit", "balance_days_before": "Balance due (days before departure)"}
 
 
 def get_setting(db: Session, key: str) -> dict:
@@ -36,5 +32,18 @@ def set_setting(db: Session, key: str, value: dict) -> dict:
     return merged
 
 
-def all_settings(db: Session) -> dict:
-    return {k: get_setting(db, k) for k in DEFAULTS}
+def quote_settings(db: Session) -> dict:
+    return get_setting(db, "quotes")
+
+
+def validate_quote_settings(value: dict) -> dict:
+    """Returns clean settings or raises ValueError with a plain message."""
+    out = {}
+    for k, (lo, hi) in LIMITS.items():
+        v = value.get(k)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not (lo <= v <= hi):
+            raise ValueError(f"{LABELS[k]} must be a number from {lo} to {hi}.")
+        out[k] = int(v) if float(v).is_integer() else float(v)
+    out["validity_days"] = int(out["validity_days"])
+    out["balance_days_before"] = int(out["balance_days_before"])
+    return out

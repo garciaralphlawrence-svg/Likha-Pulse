@@ -1,66 +1,62 @@
 import { lazy, ReactNode, Suspense } from "react";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
-import Intro from "./components/Intro";
-import Layout from "./components/Layout";
+import StaffLayout, { PublicLayout } from "./components/Layout";
 import { Spinner } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
+import Plan from "./pages/Plan";
+import Track from "./pages/Track";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Feedback = lazy(() => import("./pages/Feedback"));
-const Sentiment = lazy(() => import("./pages/Sentiment"));
-const Insights = lazy(() => import("./pages/Insights"));
-const Priority = lazy(() => import("./pages/Priority"));
-const Cases = lazy(() => import("./pages/Cases"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Integrations = lazy(() => import("./pages/Integrations"));
+const Requests = lazy(() => import("./pages/Requests"));
+const RequestDetail = lazy(() => import("./pages/RequestDetail"));
+const QuotePage = lazy(() => import("./pages/QuotePage"));
+const Rates = lazy(() => import("./pages/Rates"));
 const UsersPage = lazy(() => import("./pages/Users"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const Audit = lazy(() => import("./pages/Audit"));
-const ClientHistory = lazy(() => import("./pages/ClientHistory"));
-const Replies = lazy(() => import("./pages/Replies"));
-const KeywordWatch = lazy(() => import("./pages/KeywordWatch"));
-const TeamReport = lazy(() => import("./pages/TeamReport"));
-const WeeklyReport = lazy(() => import("./pages/WeeklyReport"));
-const ImportPage = lazy(() => import("./pages/Import"));
 
 function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const { can } = useAuth();
   return can(perm) ? <>{children}</> : <div className="card p-8 text-center text-sm text-ink-500">Your role does not have access to this page.</div>;
 }
 
-function Shell() {
-  const { user, ready } = useAuth();
+function Staff() {
+  const { user, ready, can } = useAuth();
   if (!ready) return <Spinner label="Starting…" />;
   if (!user) return <Login />;
   return (
-    <Layout>
+    <StaffLayout>
       <Suspense fallback={<Spinner />}>
         <Routes>
-          <Route path="/" element={<Guard perm="dashboard.view"><Dashboard /></Guard>} />
-          <Route path="/feedback" element={<Guard perm="feedback.view"><Feedback /></Guard>} />
-          <Route path="/sentiment" element={<Guard perm="feedback.view"><Sentiment /></Guard>} />
-          <Route path="/insights" element={<Guard perm="dashboard.view"><Insights /></Guard>} />
-          <Route path="/priority" element={<Guard perm="feedback.view"><Priority /></Guard>} />
-          <Route path="/cases" element={<Guard perm="feedback.view"><Cases /></Guard>} />
-          <Route path="/reports" element={<Guard perm="reports.view"><Reports /></Guard>} />
-          <Route path="/integrations" element={<Guard perm="dashboard.view"><Integrations /></Guard>} />
-          <Route path="/users" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
-          <Route path="/settings" element={<Guard perm="settings.manage"><SettingsPage /></Guard>} />
-          <Route path="/audit" element={<Guard perm="audit.view"><Audit /></Guard>} />
-          <Route path="/clients/:ref" element={<Guard perm="feedback.view"><ClientHistory /></Guard>} />
-          <Route path="/replies" element={<Guard perm="feedback.view"><Replies /></Guard>} />
-          <Route path="/watch" element={<Guard perm="feedback.view"><KeywordWatch /></Guard>} />
-          <Route path="/team-report" element={<Guard perm="reports.view"><TeamReport /></Guard>} />
-          <Route path="/weekly" element={<Guard perm="reports.view"><WeeklyReport /></Guard>} />
-          <Route path="/import" element={<Guard perm="feedback.manage"><ImportPage /></Guard>} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route index element={can("dashboard.view") ? <Dashboard /> : <Requests />} />
+          <Route path="requests" element={<Guard perm="requests.view"><Requests /></Guard>} />
+          <Route path="approvals" element={<Guard perm="requests.approve"><Requests initial="approval" /></Guard>} />
+          <Route path="requests/:id" element={<Guard perm="requests.view"><RequestDetail /></Guard>} />
+          <Route path="quote/:id" element={<Guard perm="requests.view"><QuotePage /></Guard>} />
+          <Route path="rates" element={<Guard perm="catalog.view"><Rates /></Guard>} />
+          <Route path="team" element={<Guard perm="users.manage"><UsersPage /></Guard>} />
+          <Route path="settings" element={<Guard perm="settings.manage"><SettingsPage /></Guard>} />
+          <Route path="activity" element={<Guard perm="audit.view"><Audit /></Guard>} />
+          <Route path="*" element={<Navigate to="/staff" />} />
         </Routes>
       </Suspense>
-    </Layout>
+    </StaffLayout>
   );
 }
 
 export default function App() {
-  return <AuthProvider><Intro /><HashRouter><Shell /></HashRouter></AuthProvider>;
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<PublicLayout><Plan /></PublicLayout>} />
+          <Route path="/track" element={<PublicLayout><Track /></PublicLayout>} />
+          <Route path="/track/:ref" element={<PublicLayout><Track /></PublicLayout>} />
+          <Route path="/staff/*" element={<Staff />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </HashRouter>
+    </AuthProvider>
+  );
 }

@@ -1,0 +1,425 @@
+{
+  "notice": "Sample rates for this preview: prices are rough estimates in Philippine pesos, not PAPH Travel and Tours' final prices. Visa and document notes are general guides for Philippine passport holders; always check the latest requirements.",
+  "version": "sample-2026-11",
+  "rules": {
+    "service_fee_pct": 10,
+    "service_fee_min": 1500,
+    "min_margin_pct": 8,
+    "validity_days": 7,
+    "deposit_pct": 30,
+    "balance_days_before": 30,
+    "kid_flight_factor": 0.75,
+    "kid_tour_factor": 0.5,
+    "kid_local_factor": 0.5,
+    "group_size": 6,
+    "group_discount_pct": 5,
+    "peak_surcharge_pct": 15,
+    "offpeak_saving_pct": 8,
+    "premium_transfer_factor": 1.6,
+    "insurance_per_day": { "international": [180, 260], "domestic": [70, 110] },
+    "default_days": 5,
+    "min_days": 2,
+    "max_days": 30,
+    "waiting_hours": 24,
+    "ph_peak": { "12": "Christmas and New Year", "1": "New Year holidays", "4": "Holy Week and summer break", "5": "summer school break" }
+  },
+  "tiers": {
+    "budget": { "label": "Budget", "hotel": "3-star or good budget hotel" },
+    "mid": { "label": "Mid-range", "hotel": "4-star hotel" },
+    "luxury": { "label": "5-star", "hotel": "5-star hotel" }
+  },
+  "options": [
+    { "code": "budget", "label": "Budget", "tier": "budget", "tour_share": 0.34, "blurb": "Good, clean stay and the must-sees, at the lowest price." },
+    { "code": "value", "label": "Best value", "tier": "mid", "tour_share": 0.5, "blurb": "Comfortable 4-star stay in a central area with a balanced set of tours." },
+    { "code": "premium", "label": "Premium", "tier": "luxury", "tour_share": 0.75, "blurb": "5-star stay in the best area, more guided tours and private transfers." }
+  ],
+  "interests": {
+    "shopping": ["shopping", "shop", "mall", "outlet", "pasalubong", "mamili"],
+    "food": ["food", "foodie", "eat", "kain", "kainan", "street food", "restaurant", "cafe"],
+    "history": ["history", "historical", "museum", "museo", "castle", "palace", "heritage", "culture", "temple", "templo"],
+    "theme_parks": ["disney", "disneyland", "universal", "theme park", "amusement", "lotte world", "everland", "ocean park"],
+    "nature": ["nature", "mountain", "bundok", "hike", "hiking", "trek", "lake", "waterfall", "countryside", "fuji"],
+    "beach": ["beach", "dagat", "island", "isla", "snorkel", "snorkeling", "dive", "diving", "swim"],
+    "family": ["kids", "kid", "child", "children", "bata", "anak", "family", "pamilya"],
+    "romance": ["honeymoon", "anniversary", "romantic", "couple", "proposal", "mag-asawa"],
+    "nightlife": ["nightlife", "party", "bar", "night market", "inuman"],
+    "shows": ["show", "musical", "theatre", "theater", "concert", "west end"],
+    "football": ["football", "soccer", "premier league", "stadium"],
+    "snow": ["snow", "niyebe", "winter", "ski"]
+  },
+  "addons": [
+    { "code": "insurance", "label": "Travel insurance", "unit": "per person per day", "detail": "Medical, trip delay and baggage cover (sample plan)." },
+    { "code": "private_transfer", "label": "Private airport transfers", "unit": "per booking", "cost": [2800, 2800], "price": 3500, "detail": "Private car with driver instead of a shared shuttle, both ways." },
+    { "code": "wifi", "label": "Pocket WiFi or travel SIM", "unit": "per day", "cost": [250, 250], "price": 350, "detail": "One device or SIM for the whole trip." }
+  ],
+  "destinations": [
+    {
+      "code": "london", "name": "London", "country": "United Kingdom", "region": "Europe", "domestic": false,
+      "aliases": ["london", "england", "united kingdom", "uk", "britain"],
+      "flight": [48000, 68000], "flight_note": "Round-trip economy from Manila with one stop",
+      "peak_months": [6, 7, 8, 12], "low_months": [1, 2, 3, 11],
+      "min_days": 5, "best_days": [7, 10],
+      "hotels": {
+        "budget": { "rate": [6000, 8500], "area": "King's Cross or Paddington", "why": "Cheaper rooms with direct trains to the airport and the sights.", "stay": "Sample 3-star hotel near a Tube station" },
+        "mid": { "rate": [10000, 15000], "area": "South Kensington", "why": "Quiet, safe and walking distance to the big museums and Hyde Park.", "stay": "Sample 4-star hotel in South Kensington" },
+        "luxury": { "rate": [24000, 38000], "area": "Mayfair or Westminster", "why": "Walk to Buckingham Palace, Big Ben and the best shopping streets.", "stay": "Sample 5-star hotel in Mayfair" }
+      },
+      "transfer": [5500, 7500], "transfer_per_person": false, "local": [900, 1300], "local_note": "Oyster or contactless train and bus fares",
+      "insurance_required": false,
+      "visa": { "needed": true, "fee": [10500, 13500], "label": "UK Standard Visitor visa", "note": "Apply online, then give fingerprints at the visa centre. Allow about 3 to 4 weeks.", "docs": ["Passport valid for the whole stay, with a blank page", "Completed online visa application and appointment", "Bank statements for the last 6 months", "Certificate of employment or business papers", "Income tax return (ITR)", "Hotel bookings and round-trip flight plan", "Travel insurance (recommended)"] },
+      "tours": [
+        { "name": "London Eye and Thames river cruise", "price": [3200, 4200], "tags": ["romance", "family"] },
+        { "name": "Tower of London and Crown Jewels", "price": [2500, 3200], "tags": ["history", "family"] },
+        { "name": "Stonehenge and Bath day trip", "price": [7500, 9500], "tags": ["history", "nature"] },
+        { "name": "Harry Potter studio tour", "price": [6500, 8000], "tags": ["family", "theme_parks", "shows"] },
+        { "name": "West End musical (good seats)", "price": [4500, 9000], "tags": ["shows", "romance", "nightlife"] },
+        { "name": "Windsor Castle half-day tour", "price": [4200, 5500], "tags": ["history"] },
+        { "name": "Oxford and Cotswolds day trip", "price": [6500, 8500], "tags": ["nature", "history"] },
+        { "name": "Football stadium tour", "price": [2200, 3000], "tags": ["football"] },
+        { "name": "Afternoon tea experience", "price": [3200, 5000], "tags": ["food", "romance"] }
+      ],
+      "ideas": [
+        { "text": "Westminster walk: Big Ben, Westminster Abbey and Buckingham Palace changing of the guard", "tags": ["history"] },
+        { "text": "British Museum and Covent Garden (museum is free)", "tags": ["history", "shows"] },
+        { "text": "Oxford Street, Regent Street and Harrods shopping", "tags": ["shopping"] },
+        { "text": "Borough Market food crawl and the South Bank", "tags": ["food"] },
+        { "text": "Hyde Park, Kensington Palace and the Natural History Museum", "tags": ["nature", "family"] },
+        { "text": "Camden Market and Notting Hill", "tags": ["shopping", "food"] }
+      ],
+      "alternatives": ["paris", "dubai", "seoul", "japan"]
+    },
+    {
+      "code": "paris", "name": "Paris", "country": "France", "region": "Europe", "domestic": false,
+      "aliases": ["paris", "france", "eiffel"],
+      "flight": [50000, 70000], "flight_note": "Round-trip economy from Manila with one stop",
+      "peak_months": [5, 6, 7, 8, 12], "low_months": [1, 2, 3, 11],
+      "min_days": 5, "best_days": [6, 9],
+      "hotels": {
+        "budget": { "rate": [6500, 9000], "area": "Montmartre", "why": "Charming hilltop area with cheaper rooms and easy Metro rides.", "stay": "Sample 3-star hotel in Montmartre" },
+        "mid": { "rate": [11000, 16000], "area": "Saint-Germain or Le Marais", "why": "Central, walkable, full of cafes and close to the Louvre.", "stay": "Sample 4-star hotel in Le Marais" },
+        "luxury": { "rate": [26000, 42000], "area": "near the Champs-Elysees", "why": "Grand hotels with Eiffel Tower views and luxury shopping outside.", "stay": "Sample 5-star hotel near the Champs-Elysees" }
+      },
+      "transfer": [5000, 7000], "transfer_per_person": false, "local": [700, 1000], "local_note": "Metro and RER train fares",
+      "insurance_required": true,
+      "visa": { "needed": true, "fee": [7500, 9500], "label": "Schengen visa (France)", "note": "Book a visa centre appointment early. Travel insurance of at least EUR 30,000 is required.", "docs": ["Passport valid 3 months after you leave, issued within 10 years", "Schengen visa form and 2 photos", "Bank statements for the last 6 months", "Certificate of employment with leave approval", "Income tax return (ITR)", "Flight reservation and hotel bookings", "Schengen travel insurance (included in this package)"] },
+      "tours": [
+        { "name": "Eiffel Tower summit with host", "price": [3600, 4500], "tags": ["romance", "family"] },
+        { "name": "Louvre Museum guided visit", "price": [3500, 4800], "tags": ["history"] },
+        { "name": "Seine dinner cruise", "price": [5500, 8500], "tags": ["romance", "food"] },
+        { "name": "Palace of Versailles day tour", "price": [5500, 7500], "tags": ["history"] },
+        { "name": "Disneyland Paris one day", "price": [5500, 7500], "tags": ["theme_parks", "family"] },
+        { "name": "Mont Saint-Michel day trip", "price": [9000, 12000], "tags": ["history", "nature"] },
+        { "name": "Montmartre walking and food tour", "price": [2200, 3000], "tags": ["food", "history"] }
+      ],
+      "ideas": [
+        { "text": "Champs-Elysees and the Arc de Triomphe", "tags": ["shopping"] },
+        { "text": "Notre-Dame area, Ile de la Cite and Latin Quarter cafes", "tags": ["history", "food"] },
+        { "text": "Galeries Lafayette and the Opera district", "tags": ["shopping"] },
+        { "text": "Luxembourg Gardens and Saint-Germain bakeries", "tags": ["nature", "food", "romance"] },
+        { "text": "Trocadero sunset photos of the Eiffel Tower", "tags": ["romance"] }
+      ],
+      "alternatives": ["london", "dubai", "seoul", "japan"]
+    },
+    {
+      "code": "japan", "name": "Japan (Tokyo and Osaka)", "country": "Japan", "region": "East Asia", "domestic": false,
+      "aliases": ["japan", "tokyo", "osaka", "kyoto", "japan tour", "hapon"],
+      "flight": [18000, 32000], "flight_note": "Manila to Tokyo, Osaka to Manila (open-jaw), economy",
+      "peak_months": [3, 4, 10, 11, 12], "low_months": [1, 2, 6],
+      "min_days": 4, "best_days": [5, 8],
+      "hotels": {
+        "budget": { "rate": [3800, 5500], "area": "Shinjuku (Tokyo) and Namba (Osaka)", "why": "Small but clean rooms next to the main train lines and food streets.", "stay": "Sample business hotel" },
+        "mid": { "rate": [7000, 10500], "area": "Shibuya (Tokyo) and Umeda (Osaka)", "why": "Bigger rooms, right on top of the shopping and the stations.", "stay": "Sample 4-star city hotel" },
+        "luxury": { "rate": [20000, 32000], "area": "Ginza (Tokyo) and Umeda (Osaka)", "why": "Luxury rooms with skyline views, steps from high-end shopping.", "stay": "Sample 5-star hotel in Ginza" }
+      },
+      "transfer": [6000, 9000], "transfer_per_person": false, "local": [1200, 1800], "local_note": "City trains, subway and IC card top-ups",
+      "insurance_required": false,
+      "visa": { "needed": true, "fee": [1200, 2000], "label": "Japan tourist visa (through an accredited agency)", "note": "Filed through an accredited agency. Allow about 2 weeks.", "docs": ["Passport valid for the whole stay", "Visa application form and 1 photo (4.5 x 3.5 cm)", "PSA birth certificate (and marriage certificate if married)", "Bank certificate and statements", "Certificate of employment or business papers", "Income tax return (ITR)", "Daily itinerary"] },
+      "tours": [
+        { "name": "Mt. Fuji and Hakone day tour", "price": [4500, 6500], "tags": ["nature", "snow"] },
+        { "name": "Tokyo Disneyland or DisneySea", "price": [4200, 5200], "tags": ["theme_parks", "family"] },
+        { "name": "Universal Studios Japan", "price": [4500, 5800], "tags": ["theme_parks", "family"] },
+        { "name": "Kyoto and Nara day tour", "price": [4000, 5800], "tags": ["history", "nature"] },
+        { "name": "Bullet train Tokyo to Osaka", "price": [7500, 8500], "tags": ["family"] },
+        { "name": "teamLab digital art museum", "price": [1800, 2200], "tags": ["family", "romance"] },
+        { "name": "Kimono and tea ceremony", "price": [3000, 4500], "tags": ["history", "romance"] }
+      ],
+      "ideas": [
+        { "text": "Asakusa Senso-ji temple and Nakamise street snacks", "tags": ["history", "food"] },
+        { "text": "Shibuya Crossing, Harajuku and Omotesando shopping", "tags": ["shopping"] },
+        { "text": "Akihabara and Ginza", "tags": ["shopping"] },
+        { "text": "Dotonbori food trip and Osaka Castle", "tags": ["food", "history"] },
+        { "text": "Shinjuku Gyoen garden and Omoide Yokocho alley", "tags": ["nature", "food"] }
+      ],
+      "alternatives": ["seoul", "taiwan", "hongkong"]
+    },
+    {
+      "code": "seoul", "name": "Seoul", "country": "South Korea", "region": "East Asia", "domestic": false,
+      "aliases": ["seoul", "korea", "south korea", "busan"],
+      "flight": [14000, 26000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [4, 10, 12], "low_months": [1, 2, 7],
+      "min_days": 4, "best_days": [5, 7],
+      "hotels": {
+        "budget": { "rate": [3200, 4800], "area": "Myeongdong", "why": "Budget hotels in the middle of the shopping and street food.", "stay": "Sample 3-star hotel in Myeongdong" },
+        "mid": { "rate": [6000, 9000], "area": "Hongdae or Insadong", "why": "Lively, youthful area with cafes and easy subway access.", "stay": "Sample 4-star hotel in Hongdae" },
+        "luxury": { "rate": [16000, 26000], "area": "Gangnam or Jung-gu", "why": "Luxury towers near the palaces and the upscale side of Seoul.", "stay": "Sample 5-star hotel in Gangnam" }
+      },
+      "transfer": [4000, 6000], "transfer_per_person": false, "local": [600, 900], "local_note": "Subway and T-money card",
+      "insurance_required": false,
+      "visa": { "needed": true, "fee": [1800, 2800], "label": "Korea tourist visa (through an accredited agency)", "note": "Usually about 2 weeks through an accredited agency.", "docs": ["Passport valid 6 months beyond your trip", "Visa form and 1 photo", "Bank certificate and statements", "Certificate of employment", "Income tax return (ITR)", "Flight plan and hotel booking"] },
+      "tours": [
+        { "name": "Nami Island and Petite France day tour", "price": [3200, 4200], "tags": ["nature", "romance"] },
+        { "name": "DMZ border tour", "price": [3500, 4800], "tags": ["history"] },
+        { "name": "Lotte World theme park", "price": [2800, 3500], "tags": ["theme_parks", "family"] },
+        { "name": "Everland theme park", "price": [3000, 3800], "tags": ["theme_parks", "family"] },
+        { "name": "Hanbok rental and Gyeongbokgung Palace", "price": [1500, 2500], "tags": ["history", "romance"] },
+        { "name": "Seoraksan mountain day trip", "price": [3800, 5000], "tags": ["nature", "snow"] },
+        { "name": "N Seoul Tower", "price": [900, 1300], "tags": ["romance", "family"] }
+      ],
+      "ideas": [
+        { "text": "Myeongdong shopping and street food", "tags": ["shopping", "food"] },
+        { "text": "Bukchon Hanok Village and Insadong", "tags": ["history"] },
+        { "text": "Hongdae cafes and night street performers", "tags": ["nightlife", "food"] },
+        { "text": "Cheonggyecheon stream and Gwangjang Market", "tags": ["food"] },
+        { "text": "Dongdaemun night shopping", "tags": ["shopping", "nightlife"] }
+      ],
+      "alternatives": ["japan", "taiwan", "hongkong"]
+    },
+    {
+      "code": "singapore", "name": "Singapore", "country": "Singapore", "region": "Southeast Asia", "domestic": false,
+      "aliases": ["singapore", "sg", "sentosa"],
+      "flight": [7000, 14000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [6, 12], "low_months": [2, 9],
+      "min_days": 3, "best_days": [4, 5],
+      "hotels": {
+        "budget": { "rate": [5500, 7500], "area": "Bugis or Little India", "why": "Lower rates with the MRT at the door and cheap hawker food.", "stay": "Sample 3-star hotel in Bugis" },
+        "mid": { "rate": [9000, 13000], "area": "Orchard Road", "why": "Shopping street right outside, central to everything.", "stay": "Sample 4-star hotel on Orchard" },
+        "luxury": { "rate": [20000, 32000], "area": "Marina Bay", "why": "Skyline views, Gardens by the Bay and the river at your doorstep.", "stay": "Sample 5-star hotel at Marina Bay" }
+      },
+      "transfer": [2500, 3500], "transfer_per_person": false, "local": [500, 800], "local_note": "MRT and bus fares",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 0], "label": "No visa needed for short visits", "note": "Philippine passport holders can usually visit visa-free for up to 30 days.", "docs": ["Passport valid at least 6 months", "SG Arrival Card filled online within 3 days before arrival", "Return ticket and hotel booking", "Proof of funds"] },
+      "tours": [
+        { "name": "Universal Studios Singapore", "price": [3600, 4200], "tags": ["theme_parks", "family"] },
+        { "name": "Gardens by the Bay flower domes", "price": [1800, 2300], "tags": ["nature", "romance"] },
+        { "name": "Night Safari", "price": [2800, 3300], "tags": ["family", "nature"] },
+        { "name": "Sentosa cable car and beaches", "price": [1500, 2000], "tags": ["beach", "family"] },
+        { "name": "S.E.A. Aquarium", "price": [1800, 2200], "tags": ["family"] },
+        { "name": "Singapore River cruise", "price": [1100, 1500], "tags": ["romance"] }
+      ],
+      "ideas": [
+        { "text": "Merlion Park and the Marina Bay light show", "tags": ["romance"] },
+        { "text": "Chinatown and Maxwell hawker centre", "tags": ["food"] },
+        { "text": "Orchard Road shopping", "tags": ["shopping"] },
+        { "text": "Kampong Glam and Haji Lane", "tags": ["history", "shopping"] }
+      ],
+      "alternatives": ["hongkong", "bangkok", "bali"]
+    },
+    {
+      "code": "hongkong", "name": "Hong Kong", "country": "Hong Kong", "region": "East Asia", "domestic": false,
+      "aliases": ["hong kong", "hongkong", "hk", "macau", "macao"],
+      "flight": [6000, 12000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [12, 4], "low_months": [6, 9],
+      "min_days": 3, "best_days": [4, 5],
+      "hotels": {
+        "budget": { "rate": [4500, 6500], "area": "Tsim Sha Tsui", "why": "Cheaper rooms near the harbour, the MTR and Nathan Road shopping.", "stay": "Sample 3-star hotel in Tsim Sha Tsui" },
+        "mid": { "rate": [7500, 11000], "area": "Causeway Bay", "why": "Shopping and dim sum all around, quick MTR to everything.", "stay": "Sample 4-star hotel in Causeway Bay" },
+        "luxury": { "rate": [18000, 30000], "area": "Central or Victoria Harbour", "why": "Harbour-view rooms and the city's finest dining nearby.", "stay": "Sample 5-star harbour-view hotel" }
+      },
+      "transfer": [2500, 3800], "transfer_per_person": false, "local": [500, 800], "local_note": "MTR and Octopus card",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 0], "label": "No visa needed for short visits", "note": "Philippine passport holders can usually visit visa-free for up to 14 days.", "docs": ["Passport valid at least 6 months", "Return ticket and hotel booking", "Proof of funds"] },
+      "tours": [
+        { "name": "Hong Kong Disneyland", "price": [4000, 4800], "tags": ["theme_parks", "family"] },
+        { "name": "Ocean Park", "price": [3500, 4200], "tags": ["theme_parks", "family"] },
+        { "name": "Peak Tram and Sky Terrace", "price": [1300, 1700], "tags": ["romance", "family"] },
+        { "name": "Ngong Ping cable car and Big Buddha", "price": [1800, 2600], "tags": ["history", "nature"] },
+        { "name": "Macau day trip", "price": [3800, 5200], "tags": ["history", "food"] },
+        { "name": "Harbour night cruise", "price": [1500, 2200], "tags": ["romance", "nightlife"] }
+      ],
+      "ideas": [
+        { "text": "Mong Kok Ladies Market and Temple Street night market", "tags": ["shopping", "nightlife"] },
+        { "text": "Dim sum breakfast and Central street escalators", "tags": ["food"] },
+        { "text": "Avenue of Stars and the harbour light show", "tags": ["romance"] },
+        { "text": "Stanley Market and the south side beaches", "tags": ["beach", "shopping"] }
+      ],
+      "alternatives": ["singapore", "taiwan", "bangkok"]
+    },
+    {
+      "code": "bangkok", "name": "Bangkok", "country": "Thailand", "region": "Southeast Asia", "domestic": false,
+      "aliases": ["bangkok", "thailand", "bkk", "pattaya"],
+      "flight": [7000, 14000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [12, 1, 4], "low_months": [6, 9],
+      "min_days": 3, "best_days": [4, 6],
+      "hotels": {
+        "budget": { "rate": [2200, 3500], "area": "Sukhumvit (Nana)", "why": "Good-value rooms near the Skytrain and night markets.", "stay": "Sample 3-star hotel on Sukhumvit" },
+        "mid": { "rate": [4500, 7000], "area": "Siam or Silom", "why": "Next to the big malls and the Skytrain, easy for families.", "stay": "Sample 4-star hotel in Siam" },
+        "luxury": { "rate": [12000, 22000], "area": "Chao Phraya riverside", "why": "Riverside luxury with boat rides to the temples.", "stay": "Sample 5-star riverside hotel" }
+      },
+      "transfer": [1800, 2800], "transfer_per_person": false, "local": [400, 700], "local_note": "Skytrain, boats and taxis",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 0], "label": "No visa needed for short visits", "note": "Philippine passport holders can usually visit visa-free. Check the latest rules and any arrival card.", "docs": ["Passport valid at least 6 months", "Return ticket and hotel booking", "Proof of funds"] },
+      "tours": [
+        { "name": "Grand Palace and temples tour", "price": [1800, 2600], "tags": ["history"] },
+        { "name": "Floating market and railway market", "price": [2200, 3000], "tags": ["food", "history"] },
+        { "name": "Ayutthaya day trip", "price": [2500, 3500], "tags": ["history"] },
+        { "name": "Chao Phraya dinner cruise", "price": [2500, 3800], "tags": ["romance", "food"] },
+        { "name": "Safari World", "price": [2600, 3300], "tags": ["family", "theme_parks"] },
+        { "name": "Thai cooking class", "price": [2200, 3000], "tags": ["food"] }
+      ],
+      "ideas": [
+        { "text": "Chatuchak weekend market", "tags": ["shopping"] },
+        { "text": "Pratunam and Platinum mall shopping", "tags": ["shopping"] },
+        { "text": "Chinatown (Yaowarat) street food night", "tags": ["food", "nightlife"] },
+        { "text": "ICONSIAM and the riverside night market", "tags": ["shopping", "food"] }
+      ],
+      "alternatives": ["singapore", "hongkong", "bali"]
+    },
+    {
+      "code": "dubai", "name": "Dubai", "country": "United Arab Emirates", "region": "Middle East", "domestic": false,
+      "aliases": ["dubai", "uae", "abu dhabi", "emirates"],
+      "flight": [26000, 42000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [12, 1, 2, 3], "low_months": [6, 7, 8],
+      "min_days": 4, "best_days": [5, 7],
+      "hotels": {
+        "budget": { "rate": [4500, 6500], "area": "Deira or Al Barsha", "why": "Budget-friendly with the Metro and the old souks nearby.", "stay": "Sample 3-star hotel in Deira" },
+        "mid": { "rate": [8000, 12000], "area": "Business Bay", "why": "Close to Downtown and the Dubai Mall for less.", "stay": "Sample 4-star hotel in Business Bay" },
+        "luxury": { "rate": [22000, 40000], "area": "Downtown or Palm Jumeirah", "why": "Burj Khalifa views or a private-beach resort on the Palm.", "stay": "Sample 5-star resort on the Palm" }
+      },
+      "transfer": [3000, 4500], "transfer_per_person": false, "local": [700, 1100], "local_note": "Metro and taxis",
+      "insurance_required": false,
+      "visa": { "needed": true, "fee": [6500, 8500], "label": "UAE tourist visa", "note": "Usually processed in about 1 week.", "docs": ["Passport valid at least 6 months", "Passport-size photo with white background", "Confirmed return ticket", "Hotel booking", "Bank statements (if asked)"] },
+      "tours": [
+        { "name": "Desert safari with BBQ dinner", "price": [3000, 4500], "tags": ["nature", "family", "food"] },
+        { "name": "Burj Khalifa observation deck", "price": [2800, 4200], "tags": ["romance", "family"] },
+        { "name": "Dhow dinner cruise", "price": [2200, 3200], "tags": ["romance", "food"] },
+        { "name": "Abu Dhabi city and grand mosque tour", "price": [4500, 6500], "tags": ["history"] },
+        { "name": "Dubai Frame", "price": [800, 1100], "tags": ["family"] },
+        { "name": "Museum of the Future", "price": [2600, 3000], "tags": ["family", "history"] }
+      ],
+      "ideas": [
+        { "text": "Dubai Mall, the fountain show and aquarium window", "tags": ["shopping", "family"] },
+        { "text": "Gold and spice souks with an abra boat ride", "tags": ["shopping", "history"] },
+        { "text": "JBR beach and Dubai Marina walk", "tags": ["beach", "romance"] },
+        { "text": "Global Village (in season) at night", "tags": ["food", "shopping", "family"] }
+      ],
+      "alternatives": ["bangkok", "singapore", "seoul"]
+    },
+    {
+      "code": "bali", "name": "Bali", "country": "Indonesia", "region": "Southeast Asia", "domestic": false,
+      "aliases": ["bali", "indonesia", "ubud", "seminyak"],
+      "flight": [14000, 24000], "flight_note": "Round-trip economy, usually one stop",
+      "peak_months": [7, 8, 12], "low_months": [2, 3, 11],
+      "min_days": 4, "best_days": [5, 7],
+      "hotels": {
+        "budget": { "rate": [2500, 4000], "area": "Kuta or Legian", "why": "Near the airport and the beach, with lots of cheap food.", "stay": "Sample 3-star hotel in Legian" },
+        "mid": { "rate": [5000, 8000], "area": "Seminyak or Ubud", "why": "Beach clubs in Seminyak or jungle views in Ubud.", "stay": "Sample 4-star resort in Seminyak" },
+        "luxury": { "rate": [14000, 28000], "area": "Nusa Dua or an Ubud pool villa", "why": "Private pool villas and calm beaches, ideal for couples.", "stay": "Sample 5-star pool villa" }
+      },
+      "transfer": [1800, 2800], "transfer_per_person": false, "local": [800, 1200], "local_note": "Shared driver for day trips",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [800, 900], "label": "No visa needed for short visits (Bali tourist levy applies)", "note": "Philippine passport holders can usually visit visa-free. Bali charges a tourist levy paid online.", "docs": ["Passport valid at least 6 months", "Return ticket and hotel booking", "Bali tourist levy paid online", "Arrival declaration filled online"] },
+      "tours": [
+        { "name": "Ubud rice terraces and monkey forest", "price": [2200, 3200], "tags": ["nature", "family"] },
+        { "name": "Nusa Penida day trip", "price": [3800, 5200], "tags": ["beach", "nature"] },
+        { "name": "Mt. Batur sunrise trek", "price": [2800, 3800], "tags": ["nature"] },
+        { "name": "Uluwatu temple and Kecak fire dance", "price": [1800, 2600], "tags": ["history", "romance"] },
+        { "name": "Balinese spa and massage", "price": [1500, 2500], "tags": ["romance"] },
+        { "name": "Snorkeling at Blue Lagoon", "price": [2000, 3000], "tags": ["beach"] }
+      ],
+      "ideas": [
+        { "text": "Seminyak beach sunset and beach club", "tags": ["beach", "romance", "nightlife"] },
+        { "text": "Tanah Lot temple at sunset", "tags": ["history", "romance"] },
+        { "text": "Ubud art market and cafes", "tags": ["shopping", "food"] },
+        { "text": "Free pool and spa day", "tags": ["romance"] }
+      ],
+      "alternatives": ["bangkok", "palawan", "boracay"]
+    },
+    {
+      "code": "taiwan", "name": "Taiwan (Taipei)", "country": "Taiwan", "region": "East Asia", "domestic": false,
+      "aliases": ["taiwan", "taipei", "taichung", "kaohsiung"],
+      "flight": [8000, 16000], "flight_note": "Round-trip economy, direct",
+      "peak_months": [12, 2, 4], "low_months": [6, 9],
+      "min_days": 3, "best_days": [4, 6],
+      "hotels": {
+        "budget": { "rate": [3000, 4500], "area": "Ximending", "why": "Young, busy area with cheap rooms and street food.", "stay": "Sample 3-star hotel in Ximending" },
+        "mid": { "rate": [5500, 8500], "area": "Zhongshan", "why": "Calm, central and on the MRT red line.", "stay": "Sample 4-star hotel in Zhongshan" },
+        "luxury": { "rate": [14000, 24000], "area": "Xinyi", "why": "Next to Taipei 101 and the best malls.", "stay": "Sample 5-star hotel in Xinyi" }
+      },
+      "transfer": [3000, 4500], "transfer_per_person": false, "local": [500, 800], "local_note": "MRT and EasyCard",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 2500], "label": "Visa-free entry or a Taiwan visa, depending on current rules", "note": "Taiwan has allowed visa-free visits for Philippine passports on a trial basis in past years. Check if it is still in place; if not, a visa is needed.", "docs": ["Passport valid at least 6 months", "Online arrival card", "Return ticket and hotel booking", "Visa or eligible visa (only if the visa-free trial has ended)"] },
+      "tours": [
+        { "name": "Jiufen old street and Shifen sky lanterns", "price": [2200, 3200], "tags": ["history", "romance"] },
+        { "name": "Taipei 101 observatory", "price": [1000, 1300], "tags": ["family", "romance"] },
+        { "name": "Yehliu Geopark coast tour", "price": [1500, 2200], "tags": ["nature"] },
+        { "name": "Taroko Gorge day trip", "price": [5500, 7500], "tags": ["nature"] },
+        { "name": "Night market food tour", "price": [1800, 2600], "tags": ["food", "nightlife"] },
+        { "name": "Sun Moon Lake day trip", "price": [3500, 5000], "tags": ["nature", "romance"] }
+      ],
+      "ideas": [
+        { "text": "Shilin and Raohe night markets", "tags": ["food", "nightlife"] },
+        { "text": "Chiang Kai-shek Memorial Hall and Longshan Temple", "tags": ["history"] },
+        { "text": "Ximending shopping and bubble tea crawl", "tags": ["shopping", "food"] },
+        { "text": "Beitou hot springs", "tags": ["nature", "romance"] }
+      ],
+      "alternatives": ["hongkong", "seoul", "japan"]
+    },
+    {
+      "code": "boracay", "name": "Boracay", "country": "Philippines", "region": "Philippines", "domestic": true,
+      "aliases": ["boracay", "bora", "aklan", "caticlan"],
+      "flight": [5000, 10000], "flight_note": "Manila to Caticlan round trip, economy",
+      "peak_months": [3, 4, 5, 12], "low_months": [7, 8, 9],
+      "min_days": 3, "best_days": [4, 5],
+      "hotels": {
+        "budget": { "rate": [2500, 4000], "area": "Station 3", "why": "Quieter end of White Beach with the lowest rates.", "stay": "Sample 3-star beach-area hotel" },
+        "mid": { "rate": [5500, 8500], "area": "Station 2", "why": "Right in the middle of White Beach, D'Mall and the restaurants.", "stay": "Sample 4-star resort at Station 2" },
+        "luxury": { "rate": [14000, 28000], "area": "Station 1 or Diniwid", "why": "The widest, finest stretch of sand and the best sunsets.", "stay": "Sample 5-star beachfront resort" }
+      },
+      "transfer": [1200, 1800], "transfer_per_person": true, "local": [300, 500], "local_note": "E-trikes around the island",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 0], "label": "No visa needed (local trip)", "note": "Bring a valid ID. Boat and environmental fees are included in the transfer.", "docs": ["Valid government ID for every adult", "Hotel booking confirmation (checked at the port)", "Birth certificate or school ID for kids"] },
+      "tours": [
+        { "name": "Island hopping with snorkeling", "price": [1200, 1800], "tags": ["beach", "family"] },
+        { "name": "Helmet diving", "price": [800, 1200], "tags": ["beach"] },
+        { "name": "Parasailing", "price": [2500, 3500], "tags": ["beach", "romance"] },
+        { "name": "Sunset paraw sailing", "price": [700, 1200], "tags": ["romance", "beach"] },
+        { "name": "Mt. Luho viewpoint and ATV ride", "price": [1500, 2500], "tags": ["nature", "family"] }
+      ],
+      "ideas": [
+        { "text": "White Beach swim and D'Mall food trip", "tags": ["beach", "food", "shopping"] },
+        { "text": "Puka Shell Beach and Ilig-Iligan", "tags": ["beach", "nature"] },
+        { "text": "Sunset dinner by the beach", "tags": ["romance", "food"] },
+        { "text": "Free beach and spa day", "tags": ["beach", "romance"] }
+      ],
+      "alternatives": ["palawan", "bali"]
+    },
+    {
+      "code": "palawan", "name": "El Nido, Palawan", "country": "Philippines", "region": "Philippines", "domestic": true,
+      "aliases": ["palawan", "el nido", "elnido", "coron", "puerto princesa"],
+      "flight": [7000, 14000], "flight_note": "Manila to Puerto Princesa round trip, economy",
+      "peak_months": [3, 4, 5, 12], "low_months": [7, 8, 9],
+      "min_days": 4, "best_days": [5, 6],
+      "hotels": {
+        "budget": { "rate": [2500, 3800], "area": "El Nido town", "why": "Walk to the boat port and the restaurants.", "stay": "Sample 3-star hotel in El Nido town" },
+        "mid": { "rate": [5500, 9000], "area": "Corong-Corong", "why": "Quieter bay with sunset views, a short ride to town.", "stay": "Sample 4-star resort in Corong-Corong" },
+        "luxury": { "rate": [15000, 32000], "area": "a private island resort", "why": "Island resort with its own beach and boat transfers.", "stay": "Sample 5-star island resort" }
+      },
+      "transfer": [1100, 1600], "transfer_per_person": true, "local": [300, 500], "local_note": "Tricycles around town",
+      "insurance_required": false,
+      "visa": { "needed": false, "fee": [0, 0], "label": "No visa needed (local trip)", "note": "Bring a valid ID. The eco-tourism fee is paid on arrival.", "docs": ["Valid government ID for every adult", "Hotel booking confirmation", "Birth certificate or school ID for kids"] },
+      "tours": [
+        { "name": "El Nido island-hopping Tour A (lagoons)", "price": [1400, 1800], "tags": ["beach", "nature", "family"] },
+        { "name": "El Nido island-hopping Tour C (hidden beaches)", "price": [1600, 2000], "tags": ["beach", "nature"] },
+        { "name": "Underground River day trip", "price": [2500, 3500], "tags": ["nature", "family"] },
+        { "name": "Las Cabanas zipline", "price": [800, 1000], "tags": ["nature", "romance"] },
+        { "name": "Nacpan Beach day", "price": [800, 1200], "tags": ["beach"] }
+      ],
+      "ideas": [
+        { "text": "Las Cabanas sunset", "tags": ["romance", "beach"] },
+        { "text": "El Nido town food crawl", "tags": ["food"] },
+        { "text": "Free beach and rest day", "tags": ["beach"] }
+      ],
+      "alternatives": ["boracay", "bali"]
+    }
+  ]
+}

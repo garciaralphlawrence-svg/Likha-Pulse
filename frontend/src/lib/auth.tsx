@@ -1,6 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { api, IS_DEMO } from "../api";
-import { DEMO_ACCOUNTS } from "../demo/demoApi";
+import { api } from "../api";
 import type { Me } from "../api/types";
 
 interface AuthCtx { user: Me | null; ready: boolean; login: (e: string, p: string) => Promise<void>; logout: () => void; can: (perm: string) => boolean }
@@ -9,12 +8,7 @@ const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    api.me()
-      .then(async (u) => u ?? (IS_DEMO ? await api.login(DEMO_ACCOUNTS[0].email, DEMO_ACCOUNTS[0].password) : null)) // demo opens straight in, no sign-in
-      .then(setUser)
-      .finally(() => setReady(true));
-  }, []);
+  useEffect(() => { api.me().then(setUser).finally(() => setReady(true)); }, []);
   const value: AuthCtx = {
     user, ready,
     login: async (e, p) => setUser(await api.login(e, p)),

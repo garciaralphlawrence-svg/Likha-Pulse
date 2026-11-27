@@ -1,9 +1,8 @@
-"""Database tables. One class per table listed in docs/ARCHITECTURE.md."""
+"""Database tables (see docs/ARCHITECTURE.md)."""
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import (JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text,
-                        UniqueConstraint, Column)
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -54,202 +53,28 @@ class User(Base):
     role: Mapped[Role] = relationship(lazy="selectin")
 
 
-class Platform(Base):
-    __tablename__ = "platforms"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    code: Mapped[str] = mapped_column(String(40), unique=True)  # facebook_page, messenger, manual, import
-    name: Mapped[str] = mapped_column(String(80))
-    status: Mapped[str] = mapped_column(String(30), default="not_connected")  # connected | not_connected | error
-    status_detail: Mapped[str] = mapped_column(Text, default="")
-    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class PlatformAccount(Base):
-    __tablename__ = "platform_accounts"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"))
-    external_account_id: Mapped[str] = mapped_column(String(120))
-    display_name: Mapped[str] = mapped_column(String(160), default="")
-    credential_env_var: Mapped[str] = mapped_column(String(80), default="")  # name of env var, never the secret
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
-
-class Feedback(Base):
-    __tablename__ = "feedback"
-    __table_args__ = (
-        UniqueConstraint("platform_id", "content_hash", name="uq_feedback_platform_hash"),
-        Index("ix_feedback_platform_created", "platform_id", "created_at"),
-    )
+class TravelRequest(Base):
+    """One customer request = one reference number. `data` holds the full request (AI recommendation, offer,
+    approval and the who/when/why trail) in the same JSON shape the frontend uses; the other columns are for lookups."""
+    __tablename__ = "travel_requests"
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=uid)
-    platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id"))
-    external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    parent_reference: Mapped[str | None] = mapped_column(String(200), nullable=True)  # post or conversation id
-    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    author_ref: Mapped[str] = mapped_column(String(80), default="anonymous")
-    content: Mapped[str] = mapped_column(Text)
-    rating: Mapped[float | None] = mapped_column(Float, nullable=True)  # optional star rating (manual entry or imported survey)
-    language: Mapped[str] = mapped_column(String(20), default="unknown")
-    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    ref: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(30), index=True)
+    customer_name: Mapped[str] = mapped_column(String(120))
+    contact: Mapped[str] = mapped_column(String(160))
+    destination: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    assignee_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     is_sample: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
-    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    review_status: Mapped[str] = mapped_column(String(30), default="unreviewed")  # unreviewed | pending_review | reviewed
-    action_status: Mapped[str] = mapped_column(String(30), default="open")  # open | pending_action | resolved
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # Team tools: client display name (only when names are kept), who handled the message and how fast
-    author_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    first_reply_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    handled_by_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    is_imported: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    platform: Mapped[Platform] = relationship(lazy="joined")
-    handled_by: Mapped["User | None"] = relationship(lazy="joined", foreign_keys=[handled_by_id])
-    sentiment: Mapped["SentimentResult | None"] = relationship(back_populates="feedback", uselist=False, lazy="joined", cascade="all, delete-orphan")
-    emotion: Mapped["EmotionResult | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
-    intent: Mapped["IntentResult | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
-    topics: Mapped[list["TopicResult"]] = relationship(lazy="selectin", cascade="all, delete-orphan")
-    priority: Mapped["PriorityAssessment | None"] = relationship(uselist=False, lazy="joined", cascade="all, delete-orphan")
-    reviews: Mapped[list["HumanReview"]] = relationship(lazy="selectin", cascade="all, delete-orphan", order_by="HumanReview.created_at")
-    case: Mapped["Case | None"] = relationship(back_populates="feedback", uselist=False, cascade="all, delete-orphan")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    data: Mapped[dict] = mapped_column(JSON)
 
 
-class SentimentResult(Base):
-    __tablename__ = "sentiment_results"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), unique=True)
-    label: Mapped[str] = mapped_column(String(20), index=True)  # positive | negative | neutral (AI prediction)
-    score: Mapped[int] = mapped_column(Integer)  # -100..100
-    confidence: Mapped[float] = mapped_column(Float)  # 0..1
-    possible_sarcasm: Mapped[bool] = mapped_column(Boolean, default=False)
-    reason: Mapped[str] = mapped_column(Text, default="")
-    recommended_action: Mapped[str] = mapped_column(Text, default="")
-    engine: Mapped[str] = mapped_column(String(30))  # rule | claude
-    model_version: Mapped[str] = mapped_column(String(80))
-    final_label: Mapped[str] = mapped_column(String(20), index=True)  # after human correction
-    analyzed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    feedback: Mapped[Feedback] = relationship(back_populates="sentiment")
-
-
-class EmotionResult(Base):
-    __tablename__ = "emotion_results"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), unique=True)
-    emotion: Mapped[str] = mapped_column(String(30))
-    final_emotion: Mapped[str] = mapped_column(String(30), index=True)
-    scores: Mapped[dict] = mapped_column(JSON, default=dict)
-
-
-class IntentResult(Base):
-    __tablename__ = "intent_results"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), unique=True)
-    intent: Mapped[str] = mapped_column(String(40))
-    final_intent: Mapped[str] = mapped_column(String(40), index=True)
-    reason: Mapped[str] = mapped_column(Text, default="")
-
-
-class TopicResult(Base):
-    __tablename__ = "topic_results"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), index=True)
-    topic: Mapped[str] = mapped_column(String(60), index=True)
-    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
-
-
-class PriorityAssessment(Base):
-    __tablename__ = "priority_assessments"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), unique=True)
-    level: Mapped[str] = mapped_column(String(20))  # critical | high | medium | low
-    final_level: Mapped[str] = mapped_column(String(20), index=True)
-    reason: Mapped[str] = mapped_column(Text, default="")
-
-
-class HumanReview(Base):
-    __tablename__ = "human_reviews"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), index=True)
-    reviewer_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    field: Mapped[str] = mapped_column(String(30))  # sentiment | emotion | intent | priority | confirm
-    original_value: Mapped[str] = mapped_column(String(60))
-    corrected_value: Mapped[str] = mapped_column(String(60))
-    note: Mapped[str] = mapped_column(Text, default="")
-    use_for_evaluation: Mapped[bool] = mapped_column(Boolean, default=False)  # approved-process flag
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    reviewer: Mapped[User] = relationship(lazy="joined")
-
-
-class Case(Base):
-    """Response Clock case: an Urgent or Important message with a deadline, an owner and a travel playbook."""
-    __tablename__ = "cases"
-    feedback_id: Mapped[str] = mapped_column(ForeignKey("feedback.id", ondelete="CASCADE"), primary_key=True)
-    situation: Mapped[str] = mapped_column(String(30), default="general")  # emergency | documents | transfer | hotel | refund | visa | booking | tour | general
-    traveling_now: Mapped[bool] = mapped_column(Boolean, default=False)
-    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    deadline_hours: Mapped[int] = mapped_column(Integer, default=24)
-    reply_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    first_reply_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
-    last_update_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    assignee_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    escalated: Mapped[bool] = mapped_column(Boolean, default=False)
-    steps: Mapped[list] = mapped_column(JSON, default=list)  # [{text, done}]
-    updates: Mapped[list] = mapped_column(JSON, default=list)  # [{at, by, kind, text}]
-    feedback: Mapped[Feedback] = relationship(back_populates="case", lazy="joined")
-    assignee: Mapped[User | None] = relationship(lazy="joined")
-
-
-class ReplyTemplate(Base):
-    """Suggested reply the team can copy (never sent automatically). Defaults come from services/reply_templates.json."""
-    __tablename__ = "reply_templates"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    situation: Mapped[str] = mapped_column(String(30), index=True)  # thank_you | delay | refund | lost_passport | booking | ...
-    language: Mapped[str] = mapped_column(String(10), default="en")  # en | tl (Taglish)
-    title: Mapped[str] = mapped_column(String(120))
-    body: Mapped[str] = mapped_column(Text)
-    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    updated_by: Mapped[str] = mapped_column(String(120), default="Likha Pulse")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
-
-
-class AIInsight(Base):
-    __tablename__ = "ai_insights"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    filters: Mapped[dict] = mapped_column(JSON, default=dict)
-    summary: Mapped[dict] = mapped_column(JSON, default=dict)  # sections of text
-    aggregates: Mapped[dict] = mapped_column(JSON, default=dict)  # numbers the text is based on
-    engine: Mapped[str] = mapped_column(String(30))
-    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
-
-class Notification(Base):
-    __tablename__ = "notifications"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    kind: Mapped[str] = mapped_column(String(40))  # critical_feedback | high_priority | negative_spike | repeated_complaint | unresolved
-    severity: Mapped[str] = mapped_column(String(20))
-    title: Mapped[str] = mapped_column(String(200))
-    message: Mapped[str] = mapped_column(Text)
-    feedback_id: Mapped[str | None] = mapped_column(ForeignKey("feedback.id", ondelete="SET NULL"), nullable=True)
-    dedupe_key: Mapped[str] = mapped_column(String(200), unique=True)
-    read_by: Mapped[list] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
-
-
-class GeneratedReport(Base):
-    __tablename__ = "generated_reports"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    report_type: Mapped[str] = mapped_column(String(40))
-    file_format: Mapped[str] = mapped_column(String(10))
-    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    file_path: Mapped[str] = mapped_column(String(400))
-    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+class RefCounter(Base):
+    """Last reference number used per year (PAPH-2026-0001, PAPH-2026-0002, ...)."""
+    __tablename__ = "ref_counters"
+    year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    last: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class AuditLog(Base):

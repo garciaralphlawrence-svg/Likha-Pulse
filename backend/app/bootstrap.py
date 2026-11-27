@@ -1,4 +1,4 @@
-"""First-run setup: roles, permissions, platforms, first Super Admin and (optionally) labeled sample data."""
+"""First-run setup: roles, permissions, the first Owner (ADMIN) account and (optionally) labeled sample requests."""
 import logging
 
 from sqlalchemy import func, select
@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.rbac import PERMISSIONS, ROLES
 from app.core.security import hash_password
-from app.models import Feedback, Permission, Role, User
-from app.services.ingestion import ensure_platforms, retire_google, seed_sample
-from app.services.replies import seed_defaults
+from app.models import Permission, Role, TravelRequest, User
+from app.services.requests import seed_samples
+from app.services.settings_service import quote_settings
 
 log = logging.getLogger(__name__)
 
@@ -35,22 +35,18 @@ def ensure_superadmin(db: Session) -> None:
     if db.scalar(select(func.count(User.id))):
         return
     if not s.superadmin_password:
-        log.warning("No users exist. Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in .env and restart to create the first account.")
+        log.warning("No users exist. Set SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in .env and restart to create the first Owner account.")
         return
-    role = db.scalar(select(Role).where(Role.name == "SUPER_ADMIN"))
+    role = db.scalar(select(Role).where(Role.name == "ADMIN"))
     db.add(User(email=s.superadmin_email.lower(), full_name=s.superadmin_name, role_id=role.id,
                 password_hash=hash_password(s.superadmin_password)))
     db.commit()
-    log.info("Created Super Admin %s", s.superadmin_email)
+    log.info("Created Owner account %s", s.superadmin_email)
 
 
 def bootstrap(db: Session) -> None:
     ensure_rbac(db)
-    ensure_platforms(db)
-    if moved := retire_google(db):
-        log.info("Google reviews were retired; %s real review(s) kept as imported history.", moved)
-    seed_defaults(db)
     ensure_superadmin(db)
-    if get_settings().seed_sample_data and not db.scalar(select(func.count(Feedback.id))):
-        n = seed_sample(db)
-        log.info("Loaded %s labeled sample feedback items (no platform connected yet).", n)
+    if get_settings().seed_sample_data and not db.scalar(select(func.count(TravelRequest.id))):
+        n = seed_samples(db, quote_settings(db))
+        log.info("Loaded %s labeled sample travel requests.", n)

@@ -4,9 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, feedback, management
-from app.api import cases as cases_api
-from app.api import team_tools
+from app.api import auth, management, public
+from app.api import requests as requests_api
 from app.core.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.bootstrap import bootstrap
@@ -25,18 +24,14 @@ async def lifespan(app: FastAPI):
         add_missing_sqlite_columns()
     with SessionLocal() as db:
         bootstrap(db)
-    sched = None
-    if settings.enable_scheduler:
-        from app.jobs import start_scheduler
-        sched = start_scheduler()
     yield
-    if sched:
-        sched.shutdown(wait=False)
 
 
-app = FastAPI(title="Likha Pulse API", version="1.0.0", lifespan=lifespan,
-              description="AI-powered sentiment analysis and feedback intelligence. Authenticate with POST /api/auth/login, "
-                          "then send `Authorization: Bearer <token>`.")
+app = FastAPI(title="PAPH Travel and Tours API", version="2.0.0", lifespan=lifespan,
+              description="AI travel quotation analyst. A customer sends a trip request (public endpoints under /api/public), "
+                          "the free built-in AI prices it and suggests options, a salesperson prepares the offer, and an agent approves, "
+                          "asks for changes or declines it. Staff endpoints need POST /api/auth/login, then `Authorization: Bearer <token>`. "
+                          "All rates are SAMPLE rates until PAPH's real rates are loaded into app/quotes/catalog.json.")
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -51,10 +46,9 @@ async def security_headers(request, call_next):
 
 
 app.include_router(auth.router)
-app.include_router(feedback.router)
+app.include_router(public.router)
+app.include_router(requests_api.router)
 app.include_router(management.router)
-app.include_router(cases_api.router)
-app.include_router(team_tools.router)
 
 
 @app.get("/api/health", tags=["system"])
